@@ -3,6 +3,7 @@
     package="ru.sinitsyndev.android_2021_task_6">
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:icon="@mipmap/ic_launcher"

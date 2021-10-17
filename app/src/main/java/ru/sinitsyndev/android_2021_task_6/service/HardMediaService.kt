@@ -8,11 +8,7 @@ import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.media.MediaBrowserServiceCompat
 import ru.sinitsyndev.android_2021_task_6.LOG_TAG
-import android.media.MediaPlayer
 import android.content.res.AssetFileDescriptor
-import android.media.AudioAttributes
-import android.media.AudioFocusRequest
-import android.media.AudioManager
 import android.os.ResultReceiver
 import android.util.Log
 import java.io.IOException
@@ -23,7 +19,13 @@ import androidx.core.app.NotificationManagerCompat
 import android.R
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.media.*
+import android.media.browse.MediaBrowser
+import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
+import android.support.v4.media.MediaDescriptionCompat
+import android.support.v4.media.MediaMetadataCompat
 import androidx.core.app.NotificationCompat
 
 import androidx.media.session.MediaButtonReceiver
@@ -37,7 +39,7 @@ private const val MY_EMPTY_MEDIA_ROOT_ID = "empty_root_id"
 //used guide
 //https://developer.android.com/guide/topics/media-apps/audio-app/building-a-mediabrowserservice
 
-class HardMediaService: MediaBrowserServiceCompat() {
+class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionListener {
 
     private var notificationManager: NotificationManager? = null
 
@@ -53,18 +55,18 @@ class HardMediaService: MediaBrowserServiceCompat() {
             .setSmallIcon(R.drawable.sym_def_app_icon)
     }
 
-    private var mediaSession: MediaSessionCompat? = null
     private lateinit var stateBuilder: PlaybackStateCompat.Builder
-    private val mMediaPlayer: MediaPlayer? = null
+    private var mediaPlayer: MediaPlayer = MediaPlayer()
     private var mMediaSessionCompat: MediaSessionCompat? = null
 
     private val mNoisyReceiver: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (mMediaPlayer != null && mMediaPlayer.isPlaying) {
-                mMediaPlayer.pause()
-            }
+            //if (mediaPlayer != null && mediaPlayer!!.isPlaying) {
+                mediaPlayer.pause()
+            //}
         }
     }
+
 
     override fun onCreate() {
         super.onCreate()
@@ -95,17 +97,26 @@ class HardMediaService: MediaBrowserServiceCompat() {
             setSessionToken(sessionToken)
         }
 
+        val testMetadata = MediaMetadataCompat.Builder()
+        testMetadata.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "Artist1")
+        testMetadata.putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Song title 1")
+        testMetadata.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, "https://freepd.com/music/Coy Koi.mp3")
+        testMetadata.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_URI, "https://freepd.com/music/Coy Koi.mp3")
+        mMediaSessionCompat?.setMetadata(testMetadata.build())
+
+        initMediaPlayer()
+
     }
 
     private fun setMediaPlaybackState(state: Int) {
-        val playbackstateBuilder = PlaybackStateCompat.Builder()
+        val playBackstateBuilder = PlaybackStateCompat.Builder()
         if (state == PlaybackStateCompat.STATE_PLAYING) {
-            playbackstateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE or PlaybackStateCompat.ACTION_PAUSE)
+            playBackstateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE or PlaybackStateCompat.ACTION_PAUSE)
         } else {
-            playbackstateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE or PlaybackStateCompat.ACTION_PLAY)
+            playBackstateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE or PlaybackStateCompat.ACTION_PLAY)
         }
-        playbackstateBuilder.setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 0f)
-        mMediaSessionCompat!!.setPlaybackState(playbackstateBuilder.build())
+        playBackstateBuilder.setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 0f)
+        mMediaSessionCompat!!.setPlaybackState(playBackstateBuilder.build())
     }
 
     override fun onGetRoot(
@@ -113,7 +124,14 @@ class HardMediaService: MediaBrowserServiceCompat() {
         clientUid: Int,
         rootHints: Bundle?
     ): BrowserRoot? {
-        return  BrowserRoot(MY_MEDIA_ROOT_ID, null)
+        Log.d(LOG_TAG, "onGetRoot")
+
+        val rootExtras = Bundle().apply {
+            putBoolean("android.media.browse.CONTENT_STYLE_SUPPORTED", true)
+            putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", 1)
+        }
+
+        return  BrowserRoot(MY_MEDIA_ROOT_ID, rootExtras)
     }
 
     override fun onLoadChildren(
@@ -123,9 +141,33 @@ class HardMediaService: MediaBrowserServiceCompat() {
 //        val mediaItems = mutableListOf<MediaBrowserCompat.MediaItem>()
 //        //val testItem = MediaBrowserCompat.MediaItem()
 //        result.sendResult(mediaItems)
+        Log.d(LOG_TAG, "onLoadChildren")
 
-        result.sendResult(null)
+        val mediaItem1 = createMediaItem("https://freepd.com/music/Coy Koi.mp3",
+            "test",
+            Uri.parse("https://www.pelicanwater.com/blog/wp-content/uploads/2019/02/cropped-Snow_Blog_Jan_2019-01.jpg"),
+            Uri.parse("https://freepd.com/music/Coy Koi.mp3")
+        )
+        val mediaItems = mutableListOf<MediaBrowserCompat.MediaItem>()
+        mediaItems.add(mediaItem1)
 
+        result.sendResult(mediaItems)
+
+    }
+
+    private fun createMediaItem(
+        mediaId: String,
+        folderName: String,
+        iconUri: Uri,
+        mediaUri: Uri
+    ): MediaBrowserCompat.MediaItem {
+        val mediaDescriptionBuilder = MediaDescriptionCompat.Builder()
+        mediaDescriptionBuilder.setMediaId(mediaId)
+        mediaDescriptionBuilder.setTitle(folderName)
+        mediaDescriptionBuilder.setIconUri(iconUri)
+        mediaDescriptionBuilder.setMediaUri(mediaUri)
+        return MediaBrowserCompat.MediaItem(
+            mediaDescriptionBuilder.build(), MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
     }
 
 //    private fun startService() {
@@ -133,6 +175,14 @@ class HardMediaService: MediaBrowserServiceCompat() {
 //            startService(intent)
 //        }
 //    }
+
+    private fun initMediaPlayer() {
+        //mediaPlayer = MediaPlayer()
+        //mediaPlayer?.setWakeMode(applicationContext, PowerManager.PARTIAL_WAKE_LOCK);
+        mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC)
+        mediaPlayer.setVolume(1.0f, 1.0f)
+        mediaPlayer.setOnCompletionListener(this)
+    }
 
     private fun startForegroundAndShowNotification() {
         createChannel()
@@ -155,9 +205,11 @@ class HardMediaService: MediaBrowserServiceCompat() {
         }
     }
 
+
     private fun getNotification(content: String) = builder.setContentText(content).build()
 
     private val heavyMediaSessionCallback = object: MediaSessionCompat.Callback() {
+
         override fun onPlay() {
             super.onPlay()
 
@@ -168,6 +220,18 @@ class HardMediaService: MediaBrowserServiceCompat() {
            //startService()
             startForegroundAndShowNotification()
             setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING)
+
+            val testMetadata = MediaMetadataCompat.Builder()
+            testMetadata.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "Artist1")
+            testMetadata.putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Song title 1")
+            testMetadata.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, "https://freepd.com/music/Coy Koi.mp3")
+            testMetadata.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_URI, "https://freepd.com/music/Coy Koi.mp3")
+            mMediaSessionCompat?.setMetadata(testMetadata.build())
+
+            mediaPlayer.setDataSource("https://freepd.com/music/Coy Koi.mp3")
+            mediaPlayer.prepare()
+            mediaPlayer.start()
+
             //showPlayingNotification()
             //mMediaPlayer?.start()
 
@@ -224,6 +288,26 @@ class HardMediaService: MediaBrowserServiceCompat() {
 //            // Take the service out of the foreground, retain the notification
 //            service.stopForeground(false)
         }
+
+        override fun onSkipToNext() {
+            super.onSkipToNext()
+            Log.d(LOG_TAG, "heavyMediaSessionCallback onSkipToNext")
+
+            val testMetadata = MediaMetadataCompat.Builder()
+            testMetadata.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "Artist1")
+            testMetadata.putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Song title 1")
+            testMetadata.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, "https://freepd.com/music/Coy Koi.mp3")
+            testMetadata.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_URI, "https://freepd.com/music/Coy Koi.mp3")
+            mMediaSessionCompat?.setMetadata(testMetadata.build())
+
+        }
+
+        override fun onPrepare() {
+            super.onPrepare()
+            Log.d(LOG_TAG, "heavyMediaSessionCallback onPrepare")
+
+        }
+
     }
 
     private fun showPlayingNotification() {
@@ -244,5 +328,10 @@ class HardMediaService: MediaBrowserServiceCompat() {
 //        )
 //        builder.setSmallIcon(R.mipmap.sym_def_app_icon)
 //        NotificationManagerCompat.from(this@HardMediaService).notify(1, builder.build())
+    }
+
+    override fun onCompletion(mp: MediaPlayer?) {
+        Log.d(LOG_TAG, "MediaPlayer onCompletion")
+        mediaPlayer.release()
     }
 }
