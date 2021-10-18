@@ -62,7 +62,7 @@ class MainFragment : Fragment() {
         }
 
         override fun onPlaybackStateChanged(state: PlaybackStateCompat?) {
-            Log.d(LOG_TAG, "onPlaybackStateChanged")
+            Log.d(LOG_TAG, "onPlaybackStateChanged ${state.toString()}")
         }
 
         override fun onAudioInfoChanged(info: MediaControllerCompat.PlaybackInfo?) {
@@ -73,40 +73,34 @@ class MainFragment : Fragment() {
 
     fun buildTransportControls() {
         mediaController = MediaControllerCompat.getMediaController(context as Activity)
-        // Grab the view for the play/pause button
-//        playPause = findViewById<ImageView>(R.id.play_pause).apply {
-//            setOnClickListener {
-//                // Since this is a play/pause button, you'll need to test the current state
-//                // and choose the action accordingly
-//
-//                val pbState = mediaController.playbackState.state
-//                if (pbState == PlaybackStateCompat.STATE_PLAYING) {
-//                    mediaController.transportControls.pause()
-//                } else {
-//                    mediaController.transportControls.play()
-//                }
-//            }
-//        }
 
-        binding.selectFirst.setOnClickListener {
-            mediaController.transportControls.skipToNext()
-        }
+//        binding.selectFirst.setOnClickListener {
+//            mediaController.transportControls.skipToNext()
+//        }
 
         binding.playBtn.setOnClickListener {
             val pbState = mediaController.playbackState.state
             Log.d(LOG_TAG, pbState.toString())
-            Log.d(LOG_TAG, mediaBrowser.root)
+            //Log.d(LOG_TAG, mediaBrowser.root)
 
             if (pbState == PlaybackStateCompat.STATE_PLAYING) {
                 mediaController.transportControls.pause()
-
+                binding.playBtn.text = "Play"
             } else {
                 mediaController.transportControls.play()
+                binding.playBtn.text = "Pause"
             }
         }
 
+        binding.NextBtn.setOnClickListener {
+            mediaController.transportControls.skipToNext()
+            binding.playBtn.text = "Pause"
+        }
 
-
+        binding.prevBtn.setOnClickListener {
+            mediaController.transportControls.skipToPrevious()
+            binding.playBtn.text = "Pause"
+        }
 
         // Display the initial state
 //        val metadata = mediaController.metadata
@@ -136,8 +130,6 @@ class MainFragment : Fragment() {
     ): View? {
         _binding = FragmentMainBinding.inflate(inflater, container, false)
         return binding.root
-    // Inflate the layout for this fragment
-        //return inflater.inflate(R.layout.fragment_main, container, false)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
