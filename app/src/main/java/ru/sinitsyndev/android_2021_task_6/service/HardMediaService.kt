@@ -7,36 +7,18 @@ import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.media.MediaBrowserServiceCompat
-import ru.sinitsyndev.android_2021_task_6.LOG_TAG
-import android.content.res.AssetFileDescriptor
 import android.os.ResultReceiver
 import android.util.Log
-import java.io.IOException
-import java.lang.IllegalStateException
-import android.content.BroadcastReceiver
-import androidx.core.app.NotificationManagerCompat
-
-import android.R.drawable
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.content.res.Resources
 import android.media.*
-import android.media.browse.MediaBrowser
 import android.net.Uri
 import android.os.Build
-import android.os.PowerManager
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
-import androidx.core.app.NotificationCompat
-
-import androidx.media.session.MediaButtonReceiver
-import ru.sinitsyndev.android_2021_task_6.CHANNEL_ID
-import ru.sinitsyndev.android_2021_task_6.NOTIFICATION_ID
+import ru.sinitsyndev.android_2021_task_6.*
 import ru.sinitsyndev.android_2021_task_6.service.data.PlayListRepository
 import ru.sinitsyndev.android_2021_task_6.service.data.Track
-
-
-private const val MY_MEDIA_ROOT_ID = "media_root_id"
 
 //used guide
 //https://developer.android.com/guide/topics/media-apps/audio-app/building-a-mediabrowserservice
@@ -51,18 +33,6 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
     private var playList = mutableListOf<Track>()
     private var currentTrack: Track? = null
 
-//    private val builder by lazy {
-//        NotificationCompat.Builder(this, CHANNEL_ID)
-//            .setContentTitle("Test")
-//            .setGroup("Test")
-//            .setGroupSummary(false)
-//            .setDefaults(NotificationCompat.DEFAULT_ALL)
-//            .setPriority(NotificationCompat.PRIORITY_HIGH)
-//            //.setContentIntent(getPendingIntent())
-//            .setSilent(true)
-//            .setSmallIcon(drawable.sym_def_app_icon)
-//    }
-
     private val notificator by lazy {
         Notificator(this)
     }
@@ -71,21 +41,11 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
     private var mediaPlayer: MediaPlayer = MediaPlayer()
     private var mMediaSessionCompat: MediaSessionCompat? = null
 
-    private val mNoisyReceiver: BroadcastReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            //if (mediaPlayer != null && mediaPlayer!!.isPlaying) {
-                mediaPlayer.pause()
-            //}
-        }
-    }
-
-
     override fun onCreate() {
         super.onCreate()
 
         repository = PlayListRepository(applicationContext.resources)
         playList = repository!!.getPlayList()!!.toMutableList()
-
 
         notificationManager =
             applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
@@ -105,8 +65,6 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
                 )
 
             setPlaybackState(stateBuilder.build())
-
-            // MySessionCallback() has methods that handle callbacks from a media controller
             setCallback(heavyMediaSessionCallback)
 
             // Set the session's token so that client activities can communicate with it.
@@ -129,26 +87,32 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
     }
 
     private fun setMediaPlaybackState(state: Int) {
-        val playBackstateBuilder = PlaybackStateCompat.Builder()
+        val playBackStateBuilder = PlaybackStateCompat.Builder()
         if (state == PlaybackStateCompat.STATE_PLAYING) {
-            playBackstateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE or PlaybackStateCompat.ACTION_PAUSE)
-        } else {
-            playBackstateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE
-                    or PlaybackStateCompat.ACTION_PLAY
+            playBackStateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE
+                    or PlaybackStateCompat.ACTION_PAUSE
                     or PlaybackStateCompat.ACTION_SKIP_TO_NEXT
                     or PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
                     or PlaybackStateCompat.ACTION_STOP
+                    or PlaybackStateCompat.ACTION_PREPARE
+            )
+        } else {
+            playBackStateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE
+                    or PlaybackStateCompat.ACTION_PLAY
+                    or PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+                    or PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+                    or PlaybackStateCompat.ACTION_PREPARE
             )
         }
-        playBackstateBuilder.setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 0f)
-        mMediaSessionCompat!!.setPlaybackState(playBackstateBuilder.build())
+        playBackStateBuilder.setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 0f)
+        mMediaSessionCompat!!.setPlaybackState(playBackStateBuilder.build())
     }
 
     override fun onGetRoot(
         clientPackageName: String,
         clientUid: Int,
         rootHints: Bundle?
-    ): BrowserRoot? {
+    ): BrowserRoot {
         Log.d(LOG_TAG, "onGetRoot")
 
         val rootExtras = Bundle().apply {
@@ -193,7 +157,6 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
         return metadata.build()
     }
 
-
     private fun initMediaPlayer() {
         mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC)
         mediaPlayer.setVolume(1.0f, 1.0f)
@@ -203,7 +166,6 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
 
     private fun startForegroundAndShowNotification() {
         createChannel()
-//        startForeground(NOTIFICATION_ID, builder.build() )
         startForeground(NOTIFICATION_ID, notificator.getNotification(createMetadataFromTrack(currentTrack!!),
             PlaybackStateCompat.STATE_PLAYING,
             sessionToken!!
@@ -212,17 +174,13 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channelName = "test media"
             val importance = NotificationManager.IMPORTANCE_DEFAULT
             val notificationChannel = NotificationChannel(
-                CHANNEL_ID, channelName, importance
+                CHANNEL_ID, MY_CHANNEL_NAME, importance
             )
             notificationManager?.createNotificationChannel(notificationChannel)
         }
     }
-
-
-    //private fun getNotification(content: String) = builder.setContentText(content).build()
 
     private val heavyMediaSessionCallback = object: MediaSessionCompat.Callback() {
 
@@ -236,6 +194,13 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
                     //play after pause
                     mediaPlayer.start()
                     setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING)
+                    notificationManager?.notify(
+                        NOTIFICATION_ID,
+                        notificator.getNotification(createMetadataFromTrack(currentTrack!!),
+                            PlaybackStateCompat.STATE_PLAYING,
+                            sessionToken!!
+                        )
+                    )
                 } else {
                     mMediaSessionCompat?.isActive = true
                     startForegroundAndShowNotification()
@@ -305,7 +270,13 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
 
             mediaPlayer.pause()
             setMediaPlaybackState(PlaybackStateCompat.STATE_PAUSED)
-
+            notificationManager?.notify(
+                NOTIFICATION_ID,
+                notificator.getNotification(createMetadataFromTrack(currentTrack!!),
+                    PlaybackStateCompat.STATE_PAUSED,
+                    sessionToken!!
+                )
+            )
 //            val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 //            // Update metadata and state
 //            // pause the player (custom call)
@@ -320,19 +291,12 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
             super.onSkipToNext()
             Log.d(LOG_TAG, "heavyMediaSessionCallback onSkipToNext")
             playNextTrack(true)
-            //mMediaSessionCompat?.setMetadata(testMetadata.build())
-
         }
 
         override fun onSkipToPrevious() {
             super.onSkipToPrevious()
-            playNextTrack(false)
             Log.d(LOG_TAG, "heavyMediaSessionCallback onSkipToPrevious")
-        }
-
-        override fun onFastForward() {
-            Log.d(LOG_TAG, "heavyMediaSessionCallback onFastForward")
-            super.onFastForward()
+            playNextTrack(false)
         }
 
         override fun onCommand(command: String?, extras: Bundle?, cb: ResultReceiver?) {
@@ -349,11 +313,6 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
             super.onPrepare()
             Log.d(LOG_TAG, "heavyMediaSessionCallback onPrepare")
 
-        }
-
-        override fun onSkipToQueueItem(id: Long) {
-            super.onSkipToQueueItem(id)
-            Log.d(LOG_TAG, "heavyMediaSessionCallback onSkipToQueueItem")
         }
 
     }
@@ -379,52 +338,34 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
                 mMediaSessionCompat?.isActive = true
 
                 setMediaPlaybackState(PlaybackStateCompat.STATE_BUFFERING)
-                //mediaPlayer.stop()
                 mediaPlayer.reset()
                 mediaPlayer.setDataSource(it.trackUri)
                 mediaPlayer.prepare()
                 mediaPlayer.start()
             }
+            notificationManager?.notify(
+                NOTIFICATION_ID,
+                notificator.getNotification(createMetadataFromTrack(currentTrack!!),
+                    PlaybackStateCompat.STATE_PLAYING,
+                    sessionToken!!
+                )
+            )
 
         }
 
     }
 
-    private fun showPlayingNotification() {
-//        val builder: NotificationCompat.Builder = NotificationCompat.Builder(this@HardMediaService)
-//        builder.addAction(
-//            NotificationCompat.Action(
-//                R.drawable.ic_media_pause,
-//                "Pause",
-//                MediaButtonReceiver.buildMediaButtonPendingIntent(
-//                    this,
-//                    PlaybackStateCompat.ACTION_PLAY_PAUSE
-//                )
-//            )
-//        )
-//        builder.setStyle(
-//            androidx.media.app.NotificationCompat.MediaStyle().setShowActionsInCompactView(0)
-//                .setMediaSession(mMediaSessionCompat!!.sessionToken)
-//        )
-//        builder.setSmallIcon(R.mipmap.sym_def_app_icon)
-//        NotificationManagerCompat.from(this@HardMediaService).notify(1, builder.build())
-    }
-
     override fun onCompletion(mp: MediaPlayer?) {
         Log.d(LOG_TAG, "MediaPlayer onCompletion")
-        mediaPlayer.release()
-        mMediaSessionCompat?.isActive = false
-        setMediaPlaybackState(PlaybackStateCompat.STATE_STOPPED)
-        stopSelf()
-        stopForeground(true)
+        playNextTrack(true)
     }
 
     override fun onPrepared(mp: MediaPlayer?) {
-        Log.d(LOG_TAG, "onPrepared")
+        Log.d(LOG_TAG, "MediaPlayer onPrepared")
         setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING)
     }
 
     override fun onBufferingUpdate(mp: MediaPlayer?, percent: Int) {
-        Log.d(LOG_TAG, "onBufferingUpdate")
+        Log.d(LOG_TAG, "MediaPlayer onBufferingUpdate")
     }
 }
