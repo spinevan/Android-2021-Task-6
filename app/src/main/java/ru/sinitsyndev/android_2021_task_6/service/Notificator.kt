@@ -20,8 +20,11 @@ import android.content.Context
 
 import androidx.core.content.ContextCompat
 import android.content.Intent
+import android.graphics.Bitmap
+import com.bumptech.glide.Glide
 
 import ru.sinitsyndev.android_2021_task_6.MainActivity
+import ru.sinitsyndev.android_2021_task_6.NOTIFICATION_LARGE_ICON_SIZE
 
 
 class Notificator(private val service: Context){
@@ -60,9 +63,9 @@ class Notificator(private val service: Context){
             PlaybackStateCompat.ACTION_SKIP_TO_NEXT)
     )
 
-    fun getNotification(metadata: MediaMetadataCompat, state: Int, token: MediaSessionCompat.Token): Notification {
+    fun getNotification(metadata: MediaMetadataCompat, state: Int, token: MediaSessionCompat.Token, image: Bitmap?): Notification {
         val isPlaying = state == PlaybackStateCompat.STATE_PLAYING
-        val builder = buildNotification(state, token, isPlaying, metadata.description)
+        val builder = buildNotification(state, token, isPlaying, metadata.description, image)
 
         return builder.build()
     }
@@ -70,7 +73,8 @@ class Notificator(private val service: Context){
     private fun buildNotification(state: Int,
                                   token: MediaSessionCompat.Token,
                                   isPlaying: Boolean,
-                                  description: MediaDescriptionCompat
+                                  description: MediaDescriptionCompat,
+                                  image: Bitmap?
     ): NotificationCompat.Builder {
 
         val builder = NotificationCompat.Builder(service, CHANNEL_ID)
@@ -96,12 +100,14 @@ class Notificator(private val service: Context){
             .setContentTitle(description.title) //
             .setContentText(description.subtitle)
             .setSilent(true)
-//            .setLargeIcon(
-//                MusicLibrary.getAlbumBitmap(
-//                    service,
-//                    attr.description.getMediaId()
-//                )
-//            )
+            .setLargeIcon(
+                image
+//                Glide.with(service)
+//                    .asBitmap()
+//                    .load(description.iconUri)
+//                    .submit(NOTIFICATION_LARGE_ICON_SIZE, NOTIFICATION_LARGE_ICON_SIZE)
+//                    .get()
+            )
             // When notification is deleted (when playback is paused and notification can be
             // deleted) fire MediaButtonPendingIntent with ACTION_STOP.
             .setDeleteIntent(

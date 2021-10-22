@@ -1,9 +1,23 @@
 package ru.sinitsyndev.android_2021_task_6.service.data
 
+import android.content.Context
 import android.content.res.Resources
+import android.graphics.Bitmap
+import android.graphics.drawable.Drawable
+import android.net.Uri
+import androidx.core.content.res.ResourcesCompat
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.DataSource
+import com.bumptech.glide.load.HttpException
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.target.Target
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import ru.sinitsyndev.android_2021_task_6.NOTIFICATION_LARGE_ICON_SIZE
 import ru.sinitsyndev.android_2021_task_6.R
 import ru.sinitsyndev.android_2021_task_6.service.interfaces.IPlayListRepository
 import java.lang.reflect.Type
@@ -30,4 +44,28 @@ class PlayListRepository(private val resources: Resources): IPlayListRepository 
             .bufferedReader().use { it.readText() }
 
     }
+
+    suspend fun resolveUriAsBitmap(context:Context, uri: Uri): Bitmap? {
+
+        try {
+            return withContext(Dispatchers.IO) {
+                // Block on downloading artwork.
+//            try {
+                Glide.with(context)
+                    .asBitmap()
+                    .load(uri)
+                    .error(resources.getDrawable(R.drawable.ic_baseline_play_arrow_24))
+                    .submit(NOTIFICATION_LARGE_ICON_SIZE, NOTIFICATION_LARGE_ICON_SIZE)
+                    .get()
+//            }catch (e: HttpException) {
+//                return@withContext null
+//            }
+
+
+            }
+        } catch (e: HttpException) {
+            return null
+        }
+    }
+
 }

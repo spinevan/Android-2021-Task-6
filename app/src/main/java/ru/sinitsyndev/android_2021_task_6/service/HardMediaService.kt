@@ -11,11 +11,14 @@ import android.os.ResultReceiver
 import android.util.Log
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.graphics.Bitmap
 import android.media.*
 import android.net.Uri
 import android.os.Build
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
+import com.bumptech.glide.Glide
+import kotlinx.coroutines.*
 import ru.sinitsyndev.android_2021_task_6.*
 import ru.sinitsyndev.android_2021_task_6.service.data.PlayListRepository
 import ru.sinitsyndev.android_2021_task_6.service.data.Track
@@ -40,6 +43,10 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
     private lateinit var stateBuilder: PlaybackStateCompat.Builder
     private var mediaPlayer: MediaPlayer = MediaPlayer()
     private var mMediaSessionCompat: MediaSessionCompat? = null
+
+    private val serviceJob = SupervisorJob()
+    private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
+    private var trackImage: Bitmap? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -139,6 +146,9 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
     }
 
     private fun createMediaItemFromTrack(track: Track): MediaBrowserCompat.MediaItem {
+
+
+
         val mediaDescriptionBuilder = MediaDescriptionCompat.Builder()
         mediaDescriptionBuilder.setMediaId(track.trackUri)
         mediaDescriptionBuilder.setTitle(track.title)
@@ -149,6 +159,7 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
     }
 
     private fun createMetadataFromTrack(track: Track):MediaMetadataCompat {
+        var currentBitmap: Bitmap? = null
         val metadata = MediaMetadataCompat.Builder()
         metadata.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, track.artist)
         metadata.putString(MediaMetadataCompat.METADATA_KEY_TITLE, track.title)
@@ -168,7 +179,8 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
         createChannel()
         startForeground(NOTIFICATION_ID, notificator.getNotification(createMetadataFromTrack(currentTrack!!),
             PlaybackStateCompat.STATE_PLAYING,
-            sessionToken!!
+            sessionToken!!,
+            null
         ) )
     }
 
@@ -194,13 +206,7 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
                     //play after pause
                     mediaPlayer.start()
                     setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING)
-                    notificationManager?.notify(
-                        NOTIFICATION_ID,
-                        notificator.getNotification(createMetadataFromTrack(currentTrack!!),
-                            PlaybackStateCompat.STATE_PLAYING,
-                            sessionToken!!
-                        )
-                    )
+                    notify(PlaybackStateCompat.STATE_PLAYING)
                 } else {
                     mMediaSessionCompat?.isActive = true
                     startForegroundAndShowNotification()
@@ -208,6 +214,7 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
                     mediaPlayer.setDataSource(it.trackUri)
                     mediaPlayer.prepare()
                     mediaPlayer.start()
+                    notifyWithImage(PlaybackStateCompat.STATE_PLAYING)
                 }
             }
 
@@ -270,13 +277,8 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
 
             mediaPlayer.pause()
             setMediaPlaybackState(PlaybackStateCompat.STATE_PAUSED)
-            notificationManager?.notify(
-                NOTIFICATION_ID,
-                notificator.getNotification(createMetadataFromTrack(currentTrack!!),
-                    PlaybackStateCompat.STATE_PAUSED,
-                    sessionToken!!
-                )
-            )
+            notify(PlaybackStateCompat.STATE_PAUSED)
+
 //            val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 //            // Update metadata and state
 //            // pause the player (custom call)
@@ -319,6 +321,7 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
 
     private fun playNextTrack( direct: Boolean) {
         var trackNumber = playList.indexOf(currentTrack)
+        trackImage = null
         if (direct) {
             trackNumber++
             if (trackNumber >= playList.size)
@@ -343,13 +346,7 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
                 mediaPlayer.prepare()
                 mediaPlayer.start()
             }
-            notificationManager?.notify(
-                NOTIFICATION_ID,
-                notificator.getNotification(createMetadataFromTrack(currentTrack!!),
-                    PlaybackStateCompat.STATE_PLAYING,
-                    sessionToken!!
-                )
-            )
+            notify(PlaybackStateCompat.STATE_PLAYING)
 
         }
 
@@ -368,4 +365,37 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
     override fun onBufferingUpdate(mp: MediaPlayer?, percent: Int) {
         Log.d(LOG_TAG, "MediaPlayer onBufferingUpdate")
     }
+
+    private fun notify(state: Int) {
+        notificationManager?.notify(
+            NOTIFICATION_ID,
+            notificator.getNotification(createMetadataFromTrack(currentTrack!!),
+                state,
+                sessionToken!!,
+                trackImage
+            )
+        )
+        if (trackImage == null) notifyWithImage(state)
+    }
+
+    private fun notifyWithImage(state: Int) {
+
+        serviceScope.launch {
+           trackImage = withContext(Dispatchers.IO) { // background thread
+                return@withContext repository?.resolveUriAsBitmap(
+                    this@HardMediaService,
+                    Uri.parse(currentTrack?.bitmapUri)
+                )
+            }
+            notificationManager?.notify(
+                NOTIFICATION_ID,
+                notificator.getNotification(createMetadataFromTrack(currentTrack!!),
+                    state,
+                    sessionToken!!,
+                    trackImage
+                )
+            )
+        }
+    }
+
 }
