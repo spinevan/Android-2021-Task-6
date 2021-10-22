@@ -37,12 +37,13 @@ import ru.sinitsyndev.android_2021_task_6.service.data.Track
 
 
 private const val MY_MEDIA_ROOT_ID = "media_root_id"
-private const val MY_EMPTY_MEDIA_ROOT_ID = "empty_root_id"
 
 //used guide
 //https://developer.android.com/guide/topics/media-apps/audio-app/building-a-mediabrowserservice
 
-class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionListener, MediaPlayer.OnPreparedListener {
+class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionListener,
+    MediaPlayer.OnPreparedListener,
+    MediaPlayer.OnBufferingUpdateListener {
 
     private var notificationManager: NotificationManager? = null
 
@@ -50,16 +51,20 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
     private var playList = mutableListOf<Track>()
     private var currentTrack: Track? = null
 
-    private val builder by lazy {
-        NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Test")
-            .setGroup("Test")
-            .setGroupSummary(false)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            //.setContentIntent(getPendingIntent())
-            .setSilent(true)
-            .setSmallIcon(drawable.sym_def_app_icon)
+//    private val builder by lazy {
+//        NotificationCompat.Builder(this, CHANNEL_ID)
+//            .setContentTitle("Test")
+//            .setGroup("Test")
+//            .setGroupSummary(false)
+//            .setDefaults(NotificationCompat.DEFAULT_ALL)
+//            .setPriority(NotificationCompat.PRIORITY_HIGH)
+//            //.setContentIntent(getPendingIntent())
+//            .setSilent(true)
+//            .setSmallIcon(drawable.sym_def_app_icon)
+//    }
+
+    private val notificator by lazy {
+        Notificator(this)
     }
 
     private lateinit var stateBuilder: PlaybackStateCompat.Builder
@@ -118,12 +123,22 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
 
     }
 
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.d(LOG_TAG, "onStartCommand")
+        return super.onStartCommand(intent, flags, startId)
+    }
+
     private fun setMediaPlaybackState(state: Int) {
         val playBackstateBuilder = PlaybackStateCompat.Builder()
         if (state == PlaybackStateCompat.STATE_PLAYING) {
             playBackstateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE or PlaybackStateCompat.ACTION_PAUSE)
         } else {
-            playBackstateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE or PlaybackStateCompat.ACTION_PLAY)
+            playBackstateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE
+                    or PlaybackStateCompat.ACTION_PLAY
+                    or PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+                    or PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+                    or PlaybackStateCompat.ACTION_STOP
+            )
         }
         playBackstateBuilder.setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 0f)
         mMediaSessionCompat!!.setPlaybackState(playBackstateBuilder.build())
@@ -159,7 +174,6 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
 
     }
 
-
     private fun createMediaItemFromTrack(track: Track): MediaBrowserCompat.MediaItem {
         val mediaDescriptionBuilder = MediaDescriptionCompat.Builder()
         mediaDescriptionBuilder.setMediaId(track.trackUri)
@@ -189,7 +203,11 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
 
     private fun startForegroundAndShowNotification() {
         createChannel()
-        startForeground(NOTIFICATION_ID, builder.build() )
+//        startForeground(NOTIFICATION_ID, builder.build() )
+        startForeground(NOTIFICATION_ID, notificator.getNotification(createMetadataFromTrack(currentTrack!!),
+            PlaybackStateCompat.STATE_PLAYING,
+            sessionToken!!
+        ) )
     }
 
     private fun createChannel() {
@@ -204,7 +222,7 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
     }
 
 
-    private fun getNotification(content: String) = builder.setContentText(content).build()
+    //private fun getNotification(content: String) = builder.setContentText(content).build()
 
     private val heavyMediaSessionCallback = object: MediaSessionCompat.Callback() {
 
@@ -312,10 +330,30 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
             Log.d(LOG_TAG, "heavyMediaSessionCallback onSkipToPrevious")
         }
 
+        override fun onFastForward() {
+            Log.d(LOG_TAG, "heavyMediaSessionCallback onFastForward")
+            super.onFastForward()
+        }
+
+        override fun onCommand(command: String?, extras: Bundle?, cb: ResultReceiver?) {
+            Log.d(LOG_TAG, "heavyMediaSessionCallback onCommand")
+            super.onCommand(command, extras, cb)
+        }
+
+        override fun onMediaButtonEvent(mediaButtonEvent: Intent?): Boolean {
+            Log.d(LOG_TAG, "heavyMediaSessionCallback onMediaButtonEvent")
+            return super.onMediaButtonEvent(mediaButtonEvent)
+        }
+
         override fun onPrepare() {
             super.onPrepare()
             Log.d(LOG_TAG, "heavyMediaSessionCallback onPrepare")
 
+        }
+
+        override fun onSkipToQueueItem(id: Long) {
+            super.onSkipToQueueItem(id)
+            Log.d(LOG_TAG, "heavyMediaSessionCallback onSkipToQueueItem")
         }
 
     }
@@ -341,6 +379,8 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
                 mMediaSessionCompat?.isActive = true
 
                 setMediaPlaybackState(PlaybackStateCompat.STATE_BUFFERING)
+                //mediaPlayer.stop()
+                mediaPlayer.reset()
                 mediaPlayer.setDataSource(it.trackUri)
                 mediaPlayer.prepare()
                 mediaPlayer.start()
@@ -382,5 +422,9 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
     override fun onPrepared(mp: MediaPlayer?) {
         Log.d(LOG_TAG, "onPrepared")
         setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING)
+    }
+
+    override fun onBufferingUpdate(mp: MediaPlayer?, percent: Int) {
+        Log.d(LOG_TAG, "onBufferingUpdate")
     }
 }
