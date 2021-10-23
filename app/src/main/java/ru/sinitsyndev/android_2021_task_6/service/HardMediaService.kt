@@ -17,7 +17,6 @@ import android.net.Uri
 import android.os.Build
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
-import com.bumptech.glide.Glide
 import kotlinx.coroutines.*
 import ru.sinitsyndev.android_2021_task_6.*
 import ru.sinitsyndev.android_2021_task_6.service.data.PlayListRepository
@@ -159,12 +158,13 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
     }
 
     private fun createMetadataFromTrack(track: Track):MediaMetadataCompat {
-        var currentBitmap: Bitmap? = null
+
         val metadata = MediaMetadataCompat.Builder()
         metadata.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, track.artist)
         metadata.putString(MediaMetadataCompat.METADATA_KEY_TITLE, track.title)
         metadata.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, track.trackUri)
         metadata.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_URI, track.trackUri)
+        metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, trackImage)
         return metadata.build()
     }
 
@@ -211,10 +211,7 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
                     mMediaSessionCompat?.isActive = true
                     startForegroundAndShowNotification()
                     setMediaPlaybackState(PlaybackStateCompat.STATE_BUFFERING)
-                    mediaPlayer.setDataSource(it.trackUri)
-                    mediaPlayer.prepare()
-                    mediaPlayer.start()
-                    notifyWithImage(PlaybackStateCompat.STATE_PLAYING)
+                    preparePlayerAndPlay(it.trackUri)
                 }
             }
 
@@ -342,14 +339,43 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
 
                 setMediaPlaybackState(PlaybackStateCompat.STATE_BUFFERING)
                 mediaPlayer.reset()
-                mediaPlayer.setDataSource(it.trackUri)
-                mediaPlayer.prepare()
-                mediaPlayer.start()
             }
+            preparePlayerAndPlay(it.trackUri)
+            mMediaSessionCompat?.setMetadata(createMetadataFromTrack(it))
             notify(PlaybackStateCompat.STATE_PLAYING)
+
 
         }
 
+    }
+
+    private fun preparePlayerAndPlay(trackUri: String) {
+        try {
+            mediaPlayer.setDataSource(trackUri)
+            mediaPlayer.prepare()
+        }catch (e: Exception){
+            Log.d(LOG_TAG, "Exception $e")
+            stopAll()
+        }
+        finally {
+            try {
+                mediaPlayer.start()
+            }catch (e: java.lang.Exception){
+                Log.d(LOG_TAG, "Exception $e")
+                stopAll()
+            }
+            finally {
+                notifyWithImage(PlaybackStateCompat.STATE_PLAYING)
+            }
+        }
+    }
+
+    private fun stopAll() {
+        mediaPlayer.release()
+        mMediaSessionCompat?.isActive = false
+        setMediaPlaybackState(PlaybackStateCompat.STATE_STOPPED)
+        stopSelf()
+        stopForeground(true)
     }
 
     override fun onCompletion(mp: MediaPlayer?) {
@@ -375,26 +401,39 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
                 trackImage
             )
         )
+        currentTrack?.let {
+            mMediaSessionCompat?.setMetadata(createMetadataFromTrack(it))
+        }
         if (trackImage == null) notifyWithImage(state)
     }
 
     private fun notifyWithImage(state: Int) {
 
-        serviceScope.launch {
-           trackImage = withContext(Dispatchers.IO) { // background thread
-                return@withContext repository?.resolveUriAsBitmap(
-                    this@HardMediaService,
-                    Uri.parse(currentTrack?.bitmapUri)
+        val errorHandler = CoroutineExceptionHandler { _, exception ->
+            Log.d(LOG_TAG, "!!!CoroutineExceptionHandler $exception")
+        }
+
+        serviceScope.launch(errorHandler) {
+            try {
+                trackImage = withContext(Dispatchers.IO) { // background thread
+                    return@withContext repository?.resolveUriAsBitmap(
+                        this@HardMediaService,
+                        Uri.parse(currentTrack?.bitmapUri)
+                    )
+                }
+            } finally {
+                notificationManager?.notify(
+                    NOTIFICATION_ID,
+                    notificator.getNotification(createMetadataFromTrack(currentTrack!!),
+                        state,
+                        sessionToken!!,
+                        trackImage
+                    )
                 )
+                currentTrack?.let {
+                    mMediaSessionCompat?.setMetadata(createMetadataFromTrack(it))
+                }
             }
-            notificationManager?.notify(
-                NOTIFICATION_ID,
-                notificator.getNotification(createMetadataFromTrack(currentTrack!!),
-                    state,
-                    sessionToken!!,
-                    trackImage
-                )
-            )
         }
     }
 
