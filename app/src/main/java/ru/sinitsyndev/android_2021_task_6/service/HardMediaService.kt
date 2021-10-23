@@ -47,6 +47,10 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
     private var trackImage: Bitmap? = null
 
+    private val errorHandler = CoroutineExceptionHandler { _, exception ->
+        Log.d(LOG_TAG, "!!!CoroutineExceptionHandler $exception")
+    }
+
     override fun onCreate() {
         super.onCreate()
 
@@ -146,8 +150,6 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
 
     private fun createMediaItemFromTrack(track: Track): MediaBrowserCompat.MediaItem {
 
-
-
         val mediaDescriptionBuilder = MediaDescriptionCompat.Builder()
         mediaDescriptionBuilder.setMediaId(track.trackUri)
         mediaDescriptionBuilder.setTitle(track.title)
@@ -214,9 +216,6 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
                     preparePlayerAndPlay(it.trackUri)
                 }
             }
-
-            //showPlayingNotification()
-            //mMediaPlayer?.start()
 
 //            val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
             // Request audio focus for playback, this registers the afChangeListener
@@ -313,7 +312,6 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
             Log.d(LOG_TAG, "heavyMediaSessionCallback onPrepare")
 
         }
-
     }
 
     private fun playNextTrack( direct: Boolean) {
@@ -343,29 +341,27 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
             preparePlayerAndPlay(it.trackUri)
             mMediaSessionCompat?.setMetadata(createMetadataFromTrack(it))
             notify(PlaybackStateCompat.STATE_PLAYING)
-
-
         }
-
     }
 
     private fun preparePlayerAndPlay(trackUri: String) {
-        try {
-            mediaPlayer.setDataSource(trackUri)
-            mediaPlayer.prepare()
-        }catch (e: Exception){
-            Log.d(LOG_TAG, "Exception $e")
-            stopAll()
-        }
-        finally {
+
+        serviceScope.launch(errorHandler) {
             try {
-                mediaPlayer.start()
-            }catch (e: java.lang.Exception){
+                mediaPlayer.setDataSource(trackUri)
+                mediaPlayer.prepare()
+            } catch (e: Exception) {
                 Log.d(LOG_TAG, "Exception $e")
                 stopAll()
-            }
-            finally {
-                notifyWithImage(PlaybackStateCompat.STATE_PLAYING)
+            } finally {
+                try {
+                    mediaPlayer.start()
+                } catch (e: java.lang.Exception) {
+                    Log.d(LOG_TAG, "Exception $e")
+                    stopAll()
+                } finally {
+                    notifyWithImage(PlaybackStateCompat.STATE_PLAYING)
+                }
             }
         }
     }
@@ -408,10 +404,6 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
     }
 
     private fun notifyWithImage(state: Int) {
-
-        val errorHandler = CoroutineExceptionHandler { _, exception ->
-            Log.d(LOG_TAG, "!!!CoroutineExceptionHandler $exception")
-        }
 
         serviceScope.launch(errorHandler) {
             try {

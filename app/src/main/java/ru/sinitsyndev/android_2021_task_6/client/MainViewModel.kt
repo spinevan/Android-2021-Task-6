@@ -30,7 +30,6 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     val state: MutableLiveData<PlaybackStateCompat?> = MutableLiveData(null)
     val metadata: MutableLiveData<MediaMetadataCompat?> = MutableLiveData(null)
     val isLoading: MutableLiveData<Boolean> = MutableLiveData(false)
-    val canInput: MutableLiveData<Boolean> = MutableLiveData(true)
 
     private val connectionCallbacks = object : MediaBrowserCompat.ConnectionCallback() {
         override fun onConnected() {
@@ -63,9 +62,9 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
 
     private var controllerCallback = object : MediaControllerCompat.Callback() {
 
-        override fun onMetadataChanged(metadata: MediaMetadataCompat?) {
-            Log.d(LOG_TAG, "onMetadataChanged ${metadata?.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID)}")
-
+        override fun onMetadataChanged(_metadata: MediaMetadataCompat?) {
+            Log.d(LOG_TAG, "onMetadataChanged ${_metadata?.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID)}")
+            metadata.value = _metadata
         }
 
         override fun onPlaybackStateChanged(_state: PlaybackStateCompat?) {
@@ -77,7 +76,6 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
                 || _state?.state == PlaybackStateCompat.STATE_ERROR
             ) {
                 isLoading.value = false
-                canInput.value = true
             }
         }
 
@@ -118,19 +116,15 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
 
     fun playPause() {
         isLoading.value = true
-        canInput.value = false
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 val pbState = mediaController.playbackState.state
                 Log.d(LOG_TAG, pbState.toString())
-                //Log.d(LOG_TAG, mediaBrowser.root)
 
                 if (pbState == PlaybackStateCompat.STATE_PLAYING) {
                     mediaController.transportControls.pause()
-                    //binding.playBtn.text = "Play"
                 } else {
                     mediaController.transportControls.play()
-                    //binding.playBtn.text = "Pause"
                 }
             }
         }
@@ -138,13 +132,19 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
 
     fun skipToPrevious() {
         isLoading.value = true
-        canInput.value = false
-        mediaController.transportControls.skipToPrevious()
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                mediaController.transportControls.skipToPrevious()
+            }
+        }
     }
 
     fun skipToNext() {
         isLoading.value = true
-        canInput.value = false
-        mediaController.transportControls.skipToNext()
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                mediaController.transportControls.skipToNext()
+            }
+        }
     }
 }

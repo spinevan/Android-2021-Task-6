@@ -1,38 +1,32 @@
 package ru.sinitsyndev.android_2021_task_6.service
 
-import android.app.NotificationManager
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
-import androidx.media.MediaBrowserServiceCompat
 import ru.sinitsyndev.android_2021_task_6.CHANNEL_ID
 import androidx.media.session.MediaButtonReceiver
-
-import android.R.attr.description
-
-import android.R
-import android.R.attr
+import android.R.drawable.ic_media_play as ic_media_play
+import android.R.drawable.ic_media_pause as ic_media_pause
+import android.R.drawable.ic_media_previous as ic_media_previous
+import android.R.drawable.ic_media_next as ic_media_next
+import android.R.color.background_light as background_light
+import android.R.drawable.sym_def_app_icon as sym_def_app_icon
 import android.app.Notification
 import android.app.PendingIntent
 import android.content.Context
-
 import androidx.core.content.ContextCompat
 import android.content.Intent
 import android.graphics.Bitmap
-import com.bumptech.glide.Glide
-
 import ru.sinitsyndev.android_2021_task_6.MainActivity
-import ru.sinitsyndev.android_2021_task_6.NOTIFICATION_LARGE_ICON_SIZE
-
 
 class Notificator(private val service: Context){
 
     private val REQUEST_CODE = 501
 
     private val playAction = NotificationCompat.Action(
-        R.drawable.ic_media_play,
+        ic_media_play,
         "Play",
         MediaButtonReceiver.buildMediaButtonPendingIntent(
             service,
@@ -40,7 +34,7 @@ class Notificator(private val service: Context){
     )
 
     private val pauseAction = NotificationCompat.Action(
-        R.drawable.ic_media_pause,
+        ic_media_pause,
         "Play",
         MediaButtonReceiver.buildMediaButtonPendingIntent(
             service,
@@ -48,7 +42,7 @@ class Notificator(private val service: Context){
     )
 
     private val prevAction = NotificationCompat.Action(
-        R.drawable.ic_media_previous,
+        ic_media_previous,
         "Prev",
         MediaButtonReceiver.buildMediaButtonPendingIntent(
             service,
@@ -56,7 +50,7 @@ class Notificator(private val service: Context){
     )
 
     private val nextAction = NotificationCompat.Action(
-        R.drawable.ic_media_next,
+        ic_media_next,
         "Next",
         MediaButtonReceiver.buildMediaButtonPendingIntent(
             service,
@@ -94,27 +88,18 @@ class Notificator(private val service: Context){
                     )
                 )
         )
-            .setColor(ContextCompat.getColor(service, R.color.background_light))
-            .setSmallIcon(R.drawable.sym_def_app_icon)
-            .setContentIntent(createContentIntent()) //
-            .setContentTitle(description.title) //
+            .setColor(ContextCompat.getColor(service, background_light))
+            .setSmallIcon(sym_def_app_icon)
+            .setContentIntent(createContentIntent())
+            .setContentTitle(description.title)
             .setContentText(description.subtitle)
             .setSilent(true)
-            .setLargeIcon(
-                image
-//                Glide.with(service)
-//                    .asBitmap()
-//                    .load(description.iconUri)
-//                    .submit(NOTIFICATION_LARGE_ICON_SIZE, NOTIFICATION_LARGE_ICON_SIZE)
-//                    .get()
-            )
-            // When notification is deleted (when playback is paused and notification can be
-            // deleted) fire MediaButtonPendingIntent with ACTION_STOP.
+            .setLargeIcon(image)
             .setDeleteIntent(
                 MediaButtonReceiver.buildMediaButtonPendingIntent(
                     service, PlaybackStateCompat.ACTION_STOP
                 )
-            ) // Show controls on lock screen even when user hides sensitive content.
+            )
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
         builder.addAction(prevAction)
@@ -137,5 +122,4 @@ class Notificator(private val service: Context){
             service, REQUEST_CODE, openIntent, PendingIntent.FLAG_CANCEL_CURRENT
         )
     }
-
 }
