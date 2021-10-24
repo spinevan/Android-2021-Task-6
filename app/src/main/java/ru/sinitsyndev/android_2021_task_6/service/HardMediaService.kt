@@ -17,6 +17,7 @@ import android.net.Uri
 import android.os.Build
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
+import androidx.annotation.RequiresApi
 import kotlinx.coroutines.*
 import ru.sinitsyndev.android_2021_task_6.*
 import ru.sinitsyndev.android_2021_task_6.service.data.PlayListRepository
@@ -27,7 +28,8 @@ import ru.sinitsyndev.android_2021_task_6.service.data.Track
 
 class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionListener,
     MediaPlayer.OnPreparedListener,
-    MediaPlayer.OnBufferingUpdateListener {
+    MediaPlayer.OnBufferingUpdateListener,
+    AudioManager.OnAudioFocusChangeListener {
 
     private var notificationManager: NotificationManager? = null
 
@@ -171,7 +173,13 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
     }
 
     private fun initMediaPlayer() {
-        mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC)
+        //mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC)
+        mediaPlayer.setAudioAttributes(
+            AudioAttributes.Builder()
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .build()
+        )
         mediaPlayer.setVolume(1.0f, 1.0f)
         mediaPlayer.setOnCompletionListener(this)
         mediaPlayer.setOnPreparedListener(this)
@@ -253,19 +261,11 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
             stopSelf()
             stopForeground(true)
 
-//            val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-//            // Abandon audio focus
-//            am.abandonAudioFocusRequest(audioFocusRequest)
-//            unregisterReceiver(myNoisyAudioStreamReceiver)
-//            // Stop the service
-//            service.stopSelf()
-//            // Set the session inactive  (and update metadata and state)
-//            mediaSession.isActive = false
-//            // stop the player (custom call)
-//            player.stop()
-//            // Take the service out of the foreground
-//            service.stopForeground(false)
-
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                // Abandon audio focus
+                am.abandonAudioFocusRequest(getAudioFocusRequest())
+            }
         }
 
         override fun onPause() {
@@ -275,14 +275,12 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
             setMediaPlaybackState(PlaybackStateCompat.STATE_PAUSED)
             notify(PlaybackStateCompat.STATE_PAUSED)
 
-//            val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-//            // Update metadata and state
-//            // pause the player (custom call)
-//            player.pause()
-//            // unregister BECOME_NOISY BroadcastReceiver
-//            unregisterReceiver(myNoisyAudioStreamReceiver)
-//            // Take the service out of the foreground, retain the notification
-//            service.stopForeground(false)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                // Abandon audio focus
+                am.abandonAudioFocusRequest(getAudioFocusRequest())
+            }
+
         }
 
         override fun onSkipToNext() {
@@ -345,24 +343,15 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
     }
 
     private fun preparePlayerAndPlay(trackUri: String) {
-
-        serviceScope.launch(errorHandler) {
-            try {
-                mediaPlayer.setDataSource(trackUri)
-                mediaPlayer.prepare()
-            } catch (e: Exception) {
-                Log.d(LOG_TAG, "Exception $e")
-                stopAll()
-            } finally {
-                try {
-                    mediaPlayer.start()
-                } catch (e: java.lang.Exception) {
-                    Log.d(LOG_TAG, "Exception $e")
-                    stopAll()
-                } finally {
-                    notifyWithImage(PlaybackStateCompat.STATE_PLAYING)
-                }
-            }
+        try {
+            mediaPlayer.setDataSource(trackUri)
+            //mediaPlayer.prepare()
+            mediaPlayer.prepareAsync()
+        } catch (e: Exception) {
+            Log.d(LOG_TAG, "Exception preparePlayerAndPlay $e")
+            stopAll()
+        } finally {
+            notifyWithImage(PlaybackStateCompat.STATE_BUFFERING)
         }
     }
 
@@ -381,7 +370,23 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
 
     override fun onPrepared(mp: MediaPlayer?) {
         Log.d(LOG_TAG, "MediaPlayer onPrepared")
-        setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING)
+
+        try {
+            if (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    getAudioFocus()
+                } else {
+                    true
+                }
+            ) {
+                mediaPlayer.start()
+            }
+        } catch (e: java.lang.Exception) {
+            Log.d(LOG_TAG, "Exception onPrepared $e")
+            stopAll()
+        } finally {
+            setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING)
+            notifyWithImage(PlaybackStateCompat.STATE_PLAYING)
+        }
     }
 
     override fun onBufferingUpdate(mp: MediaPlayer?, percent: Int) {
@@ -429,4 +434,41 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun getAudioFocus(): Boolean {
+        val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        // Request audio focus for playback, this registers the afChangeListener
+        val audioFocusRequest = getAudioFocusRequest()
+        val result = am.requestAudioFocus(audioFocusRequest)
+        return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun getAudioFocusRequest(): AudioFocusRequest{
+        val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN).run {
+            setOnAudioFocusChangeListener(this@HardMediaService)
+            setAudioAttributes(AudioAttributes.Builder().run {
+                setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                build()
+            })
+            build()
+        }
+        return audioFocusRequest
+    }
+
+    override fun onAudioFocusChange(focusChange: Int) {
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_GAIN ->
+                mediaPlayer.start()
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                mediaPlayer.pause()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                mediaPlayer.pause()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                mediaPlayer.pause()
+            }
+        }
+    }
 }

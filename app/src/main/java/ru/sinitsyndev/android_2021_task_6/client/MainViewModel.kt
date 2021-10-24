@@ -11,10 +11,6 @@ import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import ru.sinitsyndev.android_2021_task_6.LOG_TAG
 import ru.sinitsyndev.android_2021_task_6.MainActivity
 import ru.sinitsyndev.android_2021_task_6.service.HardMediaService
@@ -36,17 +32,14 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
 
             // Get the token for the MediaSession
             mediaBrowser.sessionToken.also { token ->
-
                 // Create a MediaControllerCompat
                 mediaController = MediaControllerCompat(
                     getApplication(), // Context
                     token
                 )
-
                 // Save the controller
                 MediaControllerCompat.setMediaController(activity!!, mediaController)
             }
-
             // Finish building the UI
             buildTransportControls()
         }
@@ -70,12 +63,14 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
         override fun onPlaybackStateChanged(_state: PlaybackStateCompat?) {
             Log.d(LOG_TAG, "onPlaybackStateChanged ${_state.toString()}")
             state.postValue(_state)
-            if (_state?.state == PlaybackStateCompat.STATE_PLAYING
-                || _state?.state == PlaybackStateCompat.STATE_STOPPED
-                || _state?.state == PlaybackStateCompat.STATE_PAUSED
-                || _state?.state == PlaybackStateCompat.STATE_ERROR
-            ) {
-                isLoading.value = false
+
+            when (_state?.state) {
+                PlaybackStateCompat.STATE_PLAYING -> isLoading.value = false
+                PlaybackStateCompat.STATE_STOPPED ->  isLoading.value = false
+                PlaybackStateCompat.STATE_PAUSED -> isLoading.value = false
+                PlaybackStateCompat.STATE_ERROR -> isLoading.value = false
+                PlaybackStateCompat.STATE_BUFFERING -> isLoading.value = true
+                else -> Log.d(LOG_TAG, "Another state ${_state?.state.toString()}")
             }
         }
 
@@ -100,7 +95,7 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
 
     override fun onCleared() {
         super.onCleared()
-        mediaBrowser.disconnect()
+        disconnect()
     }
 
     fun initMediaBrowserConnector(mActivity: MainActivity) {
@@ -115,36 +110,27 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     }
 
     fun playPause() {
-        isLoading.value = true
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                val pbState = mediaController.playbackState.state
-                Log.d(LOG_TAG, pbState.toString())
+        val pbState = mediaController.playbackState.state
+        Log.d(LOG_TAG, pbState.toString())
 
-                if (pbState == PlaybackStateCompat.STATE_PLAYING) {
-                    mediaController.transportControls.pause()
-                } else {
-                    mediaController.transportControls.play()
-                }
-            }
+        if (pbState == PlaybackStateCompat.STATE_PLAYING) {
+            mediaController.transportControls.pause()
+        } else {
+            mediaController.transportControls.play()
         }
     }
 
     fun skipToPrevious() {
-        isLoading.value = true
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                mediaController.transportControls.skipToPrevious()
-            }
-        }
+       mediaController.transportControls.skipToPrevious()
     }
 
     fun skipToNext() {
-        isLoading.value = true
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                mediaController.transportControls.skipToNext()
-            }
-        }
+        mediaController.transportControls.skipToNext()
     }
+
+    fun disconnect() {
+        mediaController.transportControls.stop()
+        mediaBrowser.disconnect()
+    }
+
 }
