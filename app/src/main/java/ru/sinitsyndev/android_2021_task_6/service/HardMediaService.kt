@@ -1,31 +1,45 @@
 package ru.sinitsyndev.android_2021_task_6.service
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
+import android.media.MediaPlayer
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.ResultReceiver
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
-import androidx.media.MediaBrowserServiceCompat
-import android.os.ResultReceiver
 import android.util.Log
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.graphics.Bitmap
-import android.media.*
-import android.net.Uri
-import android.os.Build
 import androidx.annotation.RequiresApi
-import kotlinx.coroutines.*
-import ru.sinitsyndev.android_2021_task_6.*
+import androidx.media.MediaBrowserServiceCompat
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import ru.sinitsyndev.android_2021_task_6.CHANNEL_ID
+import ru.sinitsyndev.android_2021_task_6.LOG_TAG
+import ru.sinitsyndev.android_2021_task_6.MY_CHANNEL_NAME
+import ru.sinitsyndev.android_2021_task_6.MY_MEDIA_ROOT_ID
+import ru.sinitsyndev.android_2021_task_6.NOTIFICATION_ID
+import ru.sinitsyndev.android_2021_task_6.appComponent
 import ru.sinitsyndev.android_2021_task_6.service.data.PlayListRepository
 import ru.sinitsyndev.android_2021_task_6.service.data.Track
 import javax.inject.Inject
 
-//used guide
-//https://developer.android.com/guide/topics/media-apps/audio-app/building-a-mediabrowserservice
+// used guide
+// https://developer.android.com/guide/topics/media-apps/audio-app/building-a-mediabrowserservice
 
-class HardMediaService: MediaBrowserServiceCompat(),
+class HardMediaService :
+    MediaBrowserServiceCompat(),
     MediaPlayer.OnCompletionListener,
     MediaPlayer.OnPreparedListener,
     MediaPlayer.OnBufferingUpdateListener,
@@ -68,13 +82,15 @@ class HardMediaService: MediaBrowserServiceCompat(),
         mMediaSessionCompat = MediaSessionCompat(baseContext, LOG_TAG).apply {
 
             // Enable callbacks from MediaButtons and TransportControls
-            setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS
+            setFlags(
+                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS
                     or MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
             )
 
             // Set an initial PlaybackState with ACTION_PLAY, so media buttons can start the player
             stateBuilder = PlaybackStateCompat.Builder()
-                .setActions(PlaybackStateCompat.ACTION_PLAY
+                .setActions(
+                    PlaybackStateCompat.ACTION_PLAY
                         or PlaybackStateCompat.ACTION_PLAY_PAUSE
                 )
 
@@ -88,11 +104,10 @@ class HardMediaService: MediaBrowserServiceCompat(),
         currentTrack = playList.firstOrNull()
 
         currentTrack?.let {
-           mMediaSessionCompat?.setMetadata(createMetadataFromTrack(it, trackImage))
+            mMediaSessionCompat?.setMetadata(createMetadataFromTrack(it, trackImage))
         }
 
         initMediaPlayer()
-
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -103,7 +118,8 @@ class HardMediaService: MediaBrowserServiceCompat(),
     private fun setMediaPlaybackState(state: Int) {
         val playBackStateBuilder = PlaybackStateCompat.Builder()
         if (state == PlaybackStateCompat.STATE_PLAYING) {
-            playBackStateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE
+            playBackStateBuilder.setActions(
+                PlaybackStateCompat.ACTION_PLAY_PAUSE
                     or PlaybackStateCompat.ACTION_PAUSE
                     or PlaybackStateCompat.ACTION_SKIP_TO_NEXT
                     or PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
@@ -111,7 +127,8 @@ class HardMediaService: MediaBrowserServiceCompat(),
                     or PlaybackStateCompat.ACTION_PREPARE
             )
         } else {
-            playBackStateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE
+            playBackStateBuilder.setActions(
+                PlaybackStateCompat.ACTION_PLAY_PAUSE
                     or PlaybackStateCompat.ACTION_PLAY
                     or PlaybackStateCompat.ACTION_SKIP_TO_NEXT
                     or PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
@@ -134,7 +151,7 @@ class HardMediaService: MediaBrowserServiceCompat(),
             putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", 1)
         }
 
-        return  BrowserRoot(MY_MEDIA_ROOT_ID, rootExtras)
+        return BrowserRoot(MY_MEDIA_ROOT_ID, rootExtras)
     }
 
     override fun onLoadChildren(
@@ -149,7 +166,6 @@ class HardMediaService: MediaBrowserServiceCompat(),
         }
 
         result.sendResult(mediaItems)
-
     }
 
     private fun initMediaPlayer() {
@@ -166,11 +182,15 @@ class HardMediaService: MediaBrowserServiceCompat(),
 
     private fun startForegroundAndShowNotification() {
         createChannel()
-        startForeground(NOTIFICATION_ID, notificator.getNotification(createMetadataFromTrack(currentTrack!!, trackImage),
-            PlaybackStateCompat.STATE_PLAYING,
-            sessionToken!!,
-            null
-        ) )
+        startForeground(
+            NOTIFICATION_ID,
+            notificator.getNotification(
+                createMetadataFromTrack(currentTrack!!, trackImage),
+                PlaybackStateCompat.STATE_PLAYING,
+                sessionToken!!,
+                null
+            )
+        )
     }
 
     private fun createChannel() {
@@ -183,7 +203,7 @@ class HardMediaService: MediaBrowserServiceCompat(),
         }
     }
 
-    private val heavyMediaSessionCallback = object: MediaSessionCompat.Callback() {
+    private val heavyMediaSessionCallback = object : MediaSessionCompat.Callback() {
 
         override fun onPlay() {
             super.onPlay()
@@ -192,7 +212,7 @@ class HardMediaService: MediaBrowserServiceCompat(),
 
             currentTrack?.let {
                 if (mMediaSessionCompat?.isActive == true) {
-                    //play after pause
+                    // play after pause
                     mediaPlayer.start()
                     setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING)
                     notify(PlaybackStateCompat.STATE_PLAYING)
@@ -259,7 +279,6 @@ class HardMediaService: MediaBrowserServiceCompat(),
                 // Abandon audio focus
                 am.abandonAudioFocusRequest(getAudioFocusRequest())
             }
-
         }
 
         override fun onSkipToNext() {
@@ -287,18 +306,17 @@ class HardMediaService: MediaBrowserServiceCompat(),
         override fun onPrepare() {
             super.onPrepare()
             Log.d(LOG_TAG, "heavyMediaSessionCallback onPrepare")
-
         }
     }
 
-    private fun playNextTrack( direct: Boolean) {
+    private fun playNextTrack(direct: Boolean) {
         var trackNumber = playList.indexOf(currentTrack)
         trackImage = null
         if (direct) {
             trackNumber++
             if (trackNumber >= playList.size)
                 trackNumber = 0
-        }else{
+        } else {
             if (trackNumber > 0)
                 trackNumber--
         }
@@ -324,7 +342,7 @@ class HardMediaService: MediaBrowserServiceCompat(),
     private fun preparePlayerAndPlay(trackUri: String) {
         try {
             mediaPlayer.setDataSource(trackUri)
-            //mediaPlayer.prepare()
+            // mediaPlayer.prepare()
             mediaPlayer.prepareAsync()
         } catch (e: Exception) {
             Log.d(LOG_TAG, "Exception preparePlayerAndPlay $e")
@@ -352,8 +370,8 @@ class HardMediaService: MediaBrowserServiceCompat(),
 
         try {
             if (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    getAudioFocus()
-                } else {
+                getAudioFocus()
+            } else {
                     true
                 }
             ) {
@@ -375,7 +393,8 @@ class HardMediaService: MediaBrowserServiceCompat(),
     private fun notify(state: Int) {
         notificationManager?.notify(
             NOTIFICATION_ID,
-            notificator.getNotification(createMetadataFromTrack(currentTrack!!, trackImage),
+            notificator.getNotification(
+                createMetadataFromTrack(currentTrack!!, trackImage),
                 state,
                 sessionToken!!,
                 trackImage
@@ -400,7 +419,8 @@ class HardMediaService: MediaBrowserServiceCompat(),
             } finally {
                 notificationManager?.notify(
                     NOTIFICATION_ID,
-                    notificator.getNotification(createMetadataFromTrack(currentTrack!!, trackImage),
+                    notificator.getNotification(
+                        createMetadataFromTrack(currentTrack!!, trackImage),
                         state,
                         sessionToken!!,
                         trackImage
@@ -423,13 +443,15 @@ class HardMediaService: MediaBrowserServiceCompat(),
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    private fun getAudioFocusRequest(): AudioFocusRequest{
+    private fun getAudioFocusRequest(): AudioFocusRequest {
         val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN).run {
             setOnAudioFocusChangeListener(this@HardMediaService)
-            setAudioAttributes(AudioAttributes.Builder().run {
-                setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                build()
-            })
+            setAudioAttributes(
+                AudioAttributes.Builder().run {
+                    setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    build()
+                }
+            )
             build()
         }
         return audioFocusRequest

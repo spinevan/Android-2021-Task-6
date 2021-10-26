@@ -38,5 +38,4 @@ class AppModule(private val application: Application) {
     fun provideNotificator(): Notificator {
         return Notificator(application.applicationContext)
     }
-
 }

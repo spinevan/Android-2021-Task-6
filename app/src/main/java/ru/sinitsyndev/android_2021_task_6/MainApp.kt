@@ -6,7 +6,7 @@ import ru.sinitsyndev.android_2021_task_6.dagger.AppComponent
 import ru.sinitsyndev.android_2021_task_6.dagger.AppModule
 import ru.sinitsyndev.android_2021_task_6.dagger.DaggerAppComponent
 
-class MainApp: Application() {
+class MainApp : Application() {
     lateinit var appComponent: AppComponent
         private set
 

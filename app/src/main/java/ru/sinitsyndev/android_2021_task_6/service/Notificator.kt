@@ -1,28 +1,28 @@
 package ru.sinitsyndev.android_2021_task_6.service
 
+import android.app.Notification
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
-import ru.sinitsyndev.android_2021_task_6.CHANNEL_ID
-import androidx.media.session.MediaButtonReceiver
-import android.R.drawable.ic_media_play as ic_media_play
-import android.R.drawable.ic_media_pause as ic_media_pause
-import android.R.drawable.ic_media_previous as ic_media_previous
-import android.R.drawable.ic_media_next as ic_media_next
-import android.R.color.background_light as background_light
-import android.R.drawable.sym_def_app_icon as sym_def_app_icon
-import android.app.Notification
-import android.app.PendingIntent
-import android.content.Context
 import androidx.core.content.ContextCompat
-import android.content.Intent
-import android.graphics.Bitmap
+import androidx.media.session.MediaButtonReceiver
+import ru.sinitsyndev.android_2021_task_6.CHANNEL_ID
 import ru.sinitsyndev.android_2021_task_6.MainActivity
 import javax.inject.Inject
+import android.R.color.background_light as background_light
+import android.R.drawable.ic_media_next as ic_media_next
+import android.R.drawable.ic_media_pause as ic_media_pause
+import android.R.drawable.ic_media_play as ic_media_play
+import android.R.drawable.ic_media_previous as ic_media_previous
+import android.R.drawable.sym_def_app_icon as sym_def_app_icon
 
-class Notificator @Inject constructor(private val service: Context){
+class Notificator @Inject constructor(private val service: Context) {
 
     private val REQUEST_CODE = 501
 
@@ -31,7 +31,8 @@ class Notificator @Inject constructor(private val service: Context){
         "Play",
         MediaButtonReceiver.buildMediaButtonPendingIntent(
             service,
-            PlaybackStateCompat.ACTION_PLAY)
+            PlaybackStateCompat.ACTION_PLAY
+        )
     )
 
     private val pauseAction = NotificationCompat.Action(
@@ -39,7 +40,8 @@ class Notificator @Inject constructor(private val service: Context){
         "Play",
         MediaButtonReceiver.buildMediaButtonPendingIntent(
             service,
-            PlaybackStateCompat.ACTION_PAUSE)
+            PlaybackStateCompat.ACTION_PAUSE
+        )
     )
 
     private val prevAction = NotificationCompat.Action(
@@ -47,7 +49,8 @@ class Notificator @Inject constructor(private val service: Context){
         "Prev",
         MediaButtonReceiver.buildMediaButtonPendingIntent(
             service,
-            PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS)
+            PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+        )
     )
 
     private val nextAction = NotificationCompat.Action(
@@ -55,7 +58,8 @@ class Notificator @Inject constructor(private val service: Context){
         "Next",
         MediaButtonReceiver.buildMediaButtonPendingIntent(
             service,
-            PlaybackStateCompat.ACTION_SKIP_TO_NEXT)
+            PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+        )
     )
 
     fun getNotification(metadata: MediaMetadataCompat, state: Int, token: MediaSessionCompat.Token, image: Bitmap?): Notification {
@@ -65,11 +69,12 @@ class Notificator @Inject constructor(private val service: Context){
         return builder.build()
     }
 
-    private fun buildNotification(state: Int,
-                                  token: MediaSessionCompat.Token,
-                                  isPlaying: Boolean,
-                                  description: MediaDescriptionCompat,
-                                  image: Bitmap?
+    private fun buildNotification(
+        state: Int,
+        token: MediaSessionCompat.Token,
+        isPlaying: Boolean,
+        description: MediaDescriptionCompat,
+        image: Bitmap?
     ): NotificationCompat.Builder {
 
         val builder = NotificationCompat.Builder(service, CHANNEL_ID)

@@ -15,7 +15,7 @@ import ru.sinitsyndev.android_2021_task_6.LOG_TAG
 import ru.sinitsyndev.android_2021_task_6.MainActivity
 import ru.sinitsyndev.android_2021_task_6.service.HardMediaService
 
-class MainViewModel(application: Application): AndroidViewModel(application) {
+class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     @SuppressLint("StaticFieldLeak")
     private var activity: MainActivity? = null
@@ -61,16 +61,16 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
         }
 
         override fun onPlaybackStateChanged(_state: PlaybackStateCompat?) {
-            Log.d(LOG_TAG, "onPlaybackStateChanged ${_state.toString()}")
+            Log.d(LOG_TAG, "onPlaybackStateChanged $_state")
             state.postValue(_state)
 
             when (_state?.state) {
                 PlaybackStateCompat.STATE_PLAYING -> isLoading.value = false
-                PlaybackStateCompat.STATE_STOPPED ->  isLoading.value = false
+                PlaybackStateCompat.STATE_STOPPED -> isLoading.value = false
                 PlaybackStateCompat.STATE_PAUSED -> isLoading.value = false
                 PlaybackStateCompat.STATE_ERROR -> isLoading.value = false
                 PlaybackStateCompat.STATE_BUFFERING -> isLoading.value = true
-                else -> Log.d(LOG_TAG, "Another state ${_state?.state.toString()}")
+                else -> Log.d(LOG_TAG, "Another state ${_state?.state}")
             }
         }
 
@@ -121,7 +121,7 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     }
 
     fun skipToPrevious() {
-       mediaController.transportControls.skipToPrevious()
+        mediaController.transportControls.skipToPrevious()
     }
 
     fun skipToNext() {
@@ -132,5 +132,4 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
         mediaController.transportControls.stop()
         mediaBrowser.disconnect()
     }
-
 }

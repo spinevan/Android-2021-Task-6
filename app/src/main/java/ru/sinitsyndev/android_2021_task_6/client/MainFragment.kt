@@ -5,11 +5,11 @@ import android.os.Bundle
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.isVisible
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import ru.sinitsyndev.android_2021_task_6.LOG_TAG
@@ -36,7 +36,8 @@ class MainFragment : Fragment() {
     }
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
+        inflater: LayoutInflater,
+        container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
         _binding = FragmentMainBinding.inflate(inflater, container, false)
@@ -86,13 +87,11 @@ class MainFragment : Fragment() {
         }
     }
 
-
-
     private fun onStateChanged(_state: PlaybackStateCompat?) {
-       Log.d(LOG_TAG, "!!!!onStateChanged ${_state.toString()}")
+        Log.d(LOG_TAG, "!!!!onStateChanged $_state")
         if (_state?.state == PlaybackStateCompat.STATE_PLAYING) {
             binding.playBtn.text = getString(R.string.pause)
-        }else {
+        } else {
             binding.playBtn.text = getString(R.string.play)
         }
     }
@@ -107,16 +106,16 @@ class MainFragment : Fragment() {
 
     private fun showMetadata(_metadata: MediaMetadataCompat?) {
         if (_metadata == null) {
-            with(binding){
+            with(binding) {
                 artist.text = ""
                 trakTitle.text = ""
                 imageView.setImageResource(R.drawable.ic_launcher_foreground)
             }
-        }else {
-            with(binding){
+        } else {
+            with(binding) {
                 artist.text = _metadata.getString(MediaMetadataCompat.METADATA_KEY_ARTIST)
                 trakTitle.text = _metadata.getString(MediaMetadataCompat.METADATA_KEY_TITLE)
-                imageView.setImageBitmap( _metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON))
+                imageView.setImageBitmap(_metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON))
             }
         }
     }

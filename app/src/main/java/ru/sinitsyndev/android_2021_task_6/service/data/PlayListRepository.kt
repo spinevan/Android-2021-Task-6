@@ -18,13 +18,13 @@ import ru.sinitsyndev.android_2021_task_6.service.interfaces.IPlayListRepository
 import java.lang.reflect.Type
 import javax.inject.Inject
 
-class PlayListRepository @Inject constructor(private val context: Context): IPlayListRepository {
+class PlayListRepository @Inject constructor(private val context: Context) : IPlayListRepository {
 
     override fun getPlayList(): List<Track>? {
 
         val jsonString = loadFromJson()
         val moshi = Moshi.Builder().build()
-        val listOfTracksType: Type = Types.newParameterizedType( List::class.java, Track::class.java)
+        val listOfTracksType: Type = Types.newParameterizedType(List::class.java, Track::class.java)
 
         val adapter: JsonAdapter<List<Track>> = moshi.adapter(listOfTracksType)
         return adapter.fromJson(jsonString)
@@ -35,7 +35,7 @@ class PlayListRepository @Inject constructor(private val context: Context): IPla
             .bufferedReader().use { it.readText() }
     }
 
-    suspend fun resolveUriAsBitmap(context:Context, uri: Uri): Bitmap? {
+    suspend fun resolveUriAsBitmap(context: Context, uri: Uri): Bitmap? {
 
         return try {
             withContext(Dispatchers.IO) {
@@ -50,5 +50,4 @@ class PlayListRepository @Inject constructor(private val context: Context): IPla
             null
         }
     }
-
 }

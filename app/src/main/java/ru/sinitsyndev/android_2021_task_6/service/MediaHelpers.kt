@@ -15,7 +15,8 @@ fun createMediaItemFromTrack(track: Track): MediaBrowserCompat.MediaItem {
     mediaDescriptionBuilder.setIconUri(Uri.parse(track.bitmapUri))
     mediaDescriptionBuilder.setMediaUri(Uri.parse(track.trackUri))
     return MediaBrowserCompat.MediaItem(
-        mediaDescriptionBuilder.build(), MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+        mediaDescriptionBuilder.build(), MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
+    )
 }
 
 fun createMetadataFromTrack(track: Track, trackImage: Bitmap?): MediaMetadataCompat {
