@@ -1,5 +1,6 @@
 package ru.sinitsyndev.android_2021_task_6.client
 
+import android.content.Context
 import android.os.Bundle
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -14,13 +15,20 @@ import androidx.lifecycle.Observer
 import ru.sinitsyndev.android_2021_task_6.LOG_TAG
 import ru.sinitsyndev.android_2021_task_6.MainActivity
 import ru.sinitsyndev.android_2021_task_6.R
+import ru.sinitsyndev.android_2021_task_6.appComponent
 import ru.sinitsyndev.android_2021_task_6.databinding.FragmentMainBinding
 
 class MainFragment : Fragment() {
 
     private var _binding: FragmentMainBinding? = null
     private val binding get() = _binding!!
+
     private val viewModel: MainViewModel by viewModels()
+
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        context.appComponent.inject(this)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -1,7 +1,6 @@
 package ru.sinitsyndev.android_2021_task_6.service.data
 
 import android.content.Context
-import android.content.res.Resources
 import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
@@ -17,8 +16,9 @@ import ru.sinitsyndev.android_2021_task_6.NOTIFICATION_LARGE_ICON_SIZE
 import ru.sinitsyndev.android_2021_task_6.R
 import ru.sinitsyndev.android_2021_task_6.service.interfaces.IPlayListRepository
 import java.lang.reflect.Type
+import javax.inject.Inject
 
-class PlayListRepository(private val resources: Resources): IPlayListRepository {
+class PlayListRepository @Inject constructor(private val context: Context): IPlayListRepository {
 
     override fun getPlayList(): List<Track>? {
 
@@ -31,7 +31,7 @@ class PlayListRepository(private val resources: Resources): IPlayListRepository 
     }
 
     private fun loadFromJson(): String {
-        return resources.openRawResource(R.raw.playlist)
+        return context.resources.openRawResource(R.raw.playlist)
             .bufferedReader().use { it.readText() }
     }
 

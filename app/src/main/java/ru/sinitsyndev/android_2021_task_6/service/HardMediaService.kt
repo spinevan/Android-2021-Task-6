@@ -15,31 +15,32 @@ import android.graphics.Bitmap
 import android.media.*
 import android.net.Uri
 import android.os.Build
-import android.support.v4.media.MediaDescriptionCompat
-import android.support.v4.media.MediaMetadataCompat
 import androidx.annotation.RequiresApi
 import kotlinx.coroutines.*
 import ru.sinitsyndev.android_2021_task_6.*
 import ru.sinitsyndev.android_2021_task_6.service.data.PlayListRepository
 import ru.sinitsyndev.android_2021_task_6.service.data.Track
+import javax.inject.Inject
 
 //used guide
 //https://developer.android.com/guide/topics/media-apps/audio-app/building-a-mediabrowserservice
 
-class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionListener,
+class HardMediaService: MediaBrowserServiceCompat(),
+    MediaPlayer.OnCompletionListener,
     MediaPlayer.OnPreparedListener,
     MediaPlayer.OnBufferingUpdateListener,
     AudioManager.OnAudioFocusChangeListener {
 
+    @Inject
+    lateinit var repository: PlayListRepository
+
+    @Inject
+    lateinit var notificator: Notificator
+
     private var notificationManager: NotificationManager? = null
 
-    private var repository: PlayListRepository? = null
     private var playList = mutableListOf<Track>()
     private var currentTrack: Track? = null
-
-    private val notificator by lazy {
-        Notificator(this)
-    }
 
     private lateinit var stateBuilder: PlaybackStateCompat.Builder
     private var mediaPlayer: MediaPlayer = MediaPlayer()
@@ -56,8 +57,9 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
     override fun onCreate() {
         super.onCreate()
 
-        repository = PlayListRepository(applicationContext.resources)
-        playList = repository!!.getPlayList()!!.toMutableList()
+        appComponent.inject(this)
+
+        playList = repository.getPlayList()!!.toMutableList()
 
         notificationManager =
             applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
@@ -86,7 +88,7 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
         currentTrack = playList.firstOrNull()
 
         currentTrack?.let {
-           mMediaSessionCompat?.setMetadata(createMetadataFromTrack(it))
+           mMediaSessionCompat?.setMetadata(createMetadataFromTrack(it, trackImage))
         }
 
         initMediaPlayer()
@@ -150,30 +152,7 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
 
     }
 
-    private fun createMediaItemFromTrack(track: Track): MediaBrowserCompat.MediaItem {
-
-        val mediaDescriptionBuilder = MediaDescriptionCompat.Builder()
-        mediaDescriptionBuilder.setMediaId(track.trackUri)
-        mediaDescriptionBuilder.setTitle(track.title)
-        mediaDescriptionBuilder.setIconUri(Uri.parse(track.bitmapUri))
-        mediaDescriptionBuilder.setMediaUri(Uri.parse(track.trackUri))
-        return MediaBrowserCompat.MediaItem(
-            mediaDescriptionBuilder.build(), MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
-    }
-
-    private fun createMetadataFromTrack(track: Track):MediaMetadataCompat {
-
-        val metadata = MediaMetadataCompat.Builder()
-        metadata.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, track.artist)
-        metadata.putString(MediaMetadataCompat.METADATA_KEY_TITLE, track.title)
-        metadata.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, track.trackUri)
-        metadata.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_URI, track.trackUri)
-        metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, trackImage)
-        return metadata.build()
-    }
-
     private fun initMediaPlayer() {
-        //mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC)
         mediaPlayer.setAudioAttributes(
             AudioAttributes.Builder()
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
@@ -187,7 +166,7 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
 
     private fun startForegroundAndShowNotification() {
         createChannel()
-        startForeground(NOTIFICATION_ID, notificator.getNotification(createMetadataFromTrack(currentTrack!!),
+        startForeground(NOTIFICATION_ID, notificator.getNotification(createMetadataFromTrack(currentTrack!!, trackImage),
             PlaybackStateCompat.STATE_PLAYING,
             sessionToken!!,
             null
@@ -337,7 +316,7 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
                 mediaPlayer.reset()
             }
             preparePlayerAndPlay(it.trackUri)
-            mMediaSessionCompat?.setMetadata(createMetadataFromTrack(it))
+            mMediaSessionCompat?.setMetadata(createMetadataFromTrack(it, trackImage))
             notify(PlaybackStateCompat.STATE_PLAYING)
         }
     }
@@ -396,14 +375,14 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
     private fun notify(state: Int) {
         notificationManager?.notify(
             NOTIFICATION_ID,
-            notificator.getNotification(createMetadataFromTrack(currentTrack!!),
+            notificator.getNotification(createMetadataFromTrack(currentTrack!!, trackImage),
                 state,
                 sessionToken!!,
                 trackImage
             )
         )
         currentTrack?.let {
-            mMediaSessionCompat?.setMetadata(createMetadataFromTrack(it))
+            mMediaSessionCompat?.setMetadata(createMetadataFromTrack(it, trackImage))
         }
         if (trackImage == null) notifyWithImage(state)
     }
@@ -413,7 +392,7 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
         serviceScope.launch(errorHandler) {
             try {
                 trackImage = withContext(Dispatchers.IO) { // background thread
-                    return@withContext repository?.resolveUriAsBitmap(
+                    return@withContext repository.resolveUriAsBitmap(
                         this@HardMediaService,
                         Uri.parse(currentTrack?.bitmapUri)
                     )
@@ -421,14 +400,14 @@ class HardMediaService: MediaBrowserServiceCompat(), MediaPlayer.OnCompletionLis
             } finally {
                 notificationManager?.notify(
                     NOTIFICATION_ID,
-                    notificator.getNotification(createMetadataFromTrack(currentTrack!!),
+                    notificator.getNotification(createMetadataFromTrack(currentTrack!!, trackImage),
                         state,
                         sessionToken!!,
                         trackImage
                     )
                 )
                 currentTrack?.let {
-                    mMediaSessionCompat?.setMetadata(createMetadataFromTrack(it))
+                    mMediaSessionCompat?.setMetadata(createMetadataFromTrack(it, trackImage))
                 }
             }
         }

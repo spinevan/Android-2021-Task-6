@@ -20,8 +20,9 @@ import androidx.core.content.ContextCompat
 import android.content.Intent
 import android.graphics.Bitmap
 import ru.sinitsyndev.android_2021_task_6.MainActivity
+import javax.inject.Inject
 
-class Notificator(private val service: Context){
+class Notificator @Inject constructor(private val service: Context){
 
     private val REQUEST_CODE = 501
 
