@@ -38,7 +38,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     token
                 )
                 // Save the controller
-                MediaControllerCompat.setMediaController(activity!!, mediaController)
+                activity?.let{ MediaControllerCompat.setMediaController(it, mediaController) }
             }
             // Finish building the UI
             buildTransportControls()

@@ -8,4 +8,5 @@
     <string name="next">Next</string>
     <string name="prev">Prev</string>
     <string name="album_image">Album image</string>
+    <string name="empty_playlist">Play list is empty</string>
 </resources>

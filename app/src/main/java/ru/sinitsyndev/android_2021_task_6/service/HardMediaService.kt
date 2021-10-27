@@ -17,6 +17,7 @@ import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.media.MediaBrowserServiceCompat
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -25,12 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import ru.sinitsyndev.android_2021_task_6.CHANNEL_ID
-import ru.sinitsyndev.android_2021_task_6.LOG_TAG
-import ru.sinitsyndev.android_2021_task_6.MY_CHANNEL_NAME
-import ru.sinitsyndev.android_2021_task_6.MY_MEDIA_ROOT_ID
-import ru.sinitsyndev.android_2021_task_6.NOTIFICATION_ID
-import ru.sinitsyndev.android_2021_task_6.appComponent
+import ru.sinitsyndev.android_2021_task_6.*
 import ru.sinitsyndev.android_2021_task_6.service.data.PlayListRepository
 import ru.sinitsyndev.android_2021_task_6.service.data.Track
 import javax.inject.Inject
@@ -73,7 +69,13 @@ class HardMediaService :
 
         appComponent.inject(this)
 
-        playList = repository.getPlayList()!!.toMutableList()
+        val loadedPlaylist = repository.getPlayList()
+        if (loadedPlaylist != null) {
+            playList = loadedPlaylist.toMutableList()
+        } else {
+            Toast.makeText(this, resources.getString(R.string.empty_playlist), Toast.LENGTH_SHORT).show()
+        }
+
 
         notificationManager =
             applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
@@ -136,7 +138,7 @@ class HardMediaService :
             )
         }
         playBackStateBuilder.setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 0f)
-        mMediaSessionCompat!!.setPlaybackState(playBackStateBuilder.build())
+        mMediaSessionCompat?.setPlaybackState(playBackStateBuilder.build())
     }
 
     override fun onGetRoot(
@@ -184,12 +186,16 @@ class HardMediaService :
         createChannel()
         startForeground(
             NOTIFICATION_ID,
-            notificator.getNotification(
-                createMetadataFromTrack(currentTrack!!, trackImage),
-                PlaybackStateCompat.STATE_PLAYING,
-                sessionToken!!,
-                null
-            )
+            currentTrack?.let { createMetadataFromTrack(it, trackImage) }?.let {
+                sessionToken?.let { it1 ->
+                    notificator.getNotification(
+                        it,
+                        PlaybackStateCompat.STATE_PLAYING,
+                        it1,
+                        null
+                    )
+                }
+            }
         )
     }
 
@@ -393,12 +399,16 @@ class HardMediaService :
     private fun notify(state: Int) {
         notificationManager?.notify(
             NOTIFICATION_ID,
-            notificator.getNotification(
-                createMetadataFromTrack(currentTrack!!, trackImage),
-                state,
-                sessionToken!!,
-                trackImage
-            )
+            currentTrack?.let { createMetadataFromTrack(it, trackImage) }?.let {
+                sessionToken?.let { it1 ->
+                    notificator.getNotification(
+                        it,
+                        state,
+                        it1,
+                        trackImage
+                    )
+                }
+            }
         )
         currentTrack?.let {
             mMediaSessionCompat?.setMetadata(createMetadataFromTrack(it, trackImage))
@@ -419,12 +429,16 @@ class HardMediaService :
             } finally {
                 notificationManager?.notify(
                     NOTIFICATION_ID,
-                    notificator.getNotification(
-                        createMetadataFromTrack(currentTrack!!, trackImage),
-                        state,
-                        sessionToken!!,
-                        trackImage
-                    )
+                    sessionToken?.let {
+                        currentTrack?.let { it1 -> createMetadataFromTrack(it1, trackImage) }?.let { it2 ->
+                            notificator.getNotification(
+                                it2,
+                                state,
+                                it,
+                                trackImage
+                            )
+                        }
+                    }
                 )
                 currentTrack?.let {
                     mMediaSessionCompat?.setMetadata(createMetadataFromTrack(it, trackImage))
