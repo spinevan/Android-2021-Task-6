@@ -229,31 +229,6 @@ class HardMediaService :
                     preparePlayerAndPlay(it.trackUri)
                 }
             }
-
-//            val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-            // Request audio focus for playback, this registers the afChangeListener
-
-//             val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN).run {
-//                //setOnAudioFocusChangeListener(afChangeListener)
-//                setAudioAttributes(AudioAttributes.Builder().run {
-//                    setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-//                    build()
-//                })
-//                build()
-//            }
-//            val result = am.requestAudioFocus(audioFocusRequest)
-//            if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-//                // Start the service
-//                startService(Intent(applicationContext, HardMediaService::class.java))
-//                // Set the session active  (and update metadata and state)
-//                mediaSession?.isActive = true
-//                // start the player (custom call)
-//                player.start()
-//                // Register BECOME_NOISY BroadcastReceiver
-//                //registerReceiver(myNoisyAudioStreamReceiver, intentFilter)
-//                // Put the service in the foreground, post notification
-//                service.startForeground(id, myPlayerNotification)
-//            }
         }
 
         override fun onStop() {
