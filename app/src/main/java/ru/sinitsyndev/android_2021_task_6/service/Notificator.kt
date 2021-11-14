@@ -1,5 +1,6 @@
 package ru.sinitsyndev.android_2021_task_6.service
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.PendingIntent
 import android.content.Context
@@ -14,6 +15,10 @@ import androidx.core.content.ContextCompat
 import androidx.media.session.MediaButtonReceiver
 import ru.sinitsyndev.android_2021_task_6.CHANNEL_ID
 import ru.sinitsyndev.android_2021_task_6.MainActivity
+import ru.sinitsyndev.android_2021_task_6.R.string.play
+import ru.sinitsyndev.android_2021_task_6.R.string.pause
+import ru.sinitsyndev.android_2021_task_6.R.string.prev
+import ru.sinitsyndev.android_2021_task_6.R.string.next
 import javax.inject.Inject
 import android.R.color.background_light as background_light
 import android.R.drawable.ic_media_next as ic_media_next
@@ -28,7 +33,7 @@ class Notificator @Inject constructor(private val service: Context) {
 
     private val playAction = NotificationCompat.Action(
         ic_media_play,
-        "Play",
+        service.getString(play),
         MediaButtonReceiver.buildMediaButtonPendingIntent(
             service,
             PlaybackStateCompat.ACTION_PLAY
@@ -37,7 +42,7 @@ class Notificator @Inject constructor(private val service: Context) {
 
     private val pauseAction = NotificationCompat.Action(
         ic_media_pause,
-        "Play",
+        service.getString(pause),
         MediaButtonReceiver.buildMediaButtonPendingIntent(
             service,
             PlaybackStateCompat.ACTION_PAUSE
@@ -46,7 +51,7 @@ class Notificator @Inject constructor(private val service: Context) {
 
     private val prevAction = NotificationCompat.Action(
         ic_media_previous,
-        "Prev",
+        service.getString(prev),
         MediaButtonReceiver.buildMediaButtonPendingIntent(
             service,
             PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
@@ -55,7 +60,7 @@ class Notificator @Inject constructor(private val service: Context) {
 
     private val nextAction = NotificationCompat.Action(
         ic_media_next,
-        "Next",
+        service.getString(next),
         MediaButtonReceiver.buildMediaButtonPendingIntent(
             service,
             PlaybackStateCompat.ACTION_SKIP_TO_NEXT
@@ -121,6 +126,7 @@ class Notificator @Inject constructor(private val service: Context) {
         return builder
     }
 
+    @SuppressLint("UnspecifiedImmutableFlag")
     private fun createContentIntent(): PendingIntent {
         val openIntent = Intent(service, MainActivity::class.java)
         openIntent.flags = Intent.FLAG_ACTIVITY_SINGLE_TOP

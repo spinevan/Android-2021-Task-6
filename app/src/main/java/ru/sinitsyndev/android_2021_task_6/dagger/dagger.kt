@@ -13,6 +13,7 @@ import ru.sinitsyndev.android_2021_task_6.service.data.PlayListRepository
 import javax.inject.Singleton
 
 @Component(modules = [AppModule::class])
+@Singleton
 interface AppComponent {
     fun inject(activity: MainActivity)
     fun inject(hardMediaService: HardMediaService)

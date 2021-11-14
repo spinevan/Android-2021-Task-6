@@ -12,7 +12,7 @@ import com.squareup.moshi.Types
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import ru.sinitsyndev.android_2021_task_6.LOG_TAG
-import ru.sinitsyndev.android_2021_task_6.NOTIFICATION_LARGE_ICON_SIZE
+import ru.sinitsyndev.android_2021_task_6.NOTIFICATION_LARGE_ICON_SIZE_PX
 import ru.sinitsyndev.android_2021_task_6.R
 import ru.sinitsyndev.android_2021_task_6.service.interfaces.IPlayListRepository
 import java.lang.reflect.Type
@@ -42,7 +42,7 @@ class PlayListRepository @Inject constructor(private val context: Context) : IPl
                 Glide.with(context)
                     .asBitmap()
                     .load(uri)
-                    .submit(NOTIFICATION_LARGE_ICON_SIZE, NOTIFICATION_LARGE_ICON_SIZE)
+                    .submit(NOTIFICATION_LARGE_ICON_SIZE_PX, NOTIFICATION_LARGE_ICON_SIZE_PX)
                     .get()
             }
         } catch (e: HttpException) {

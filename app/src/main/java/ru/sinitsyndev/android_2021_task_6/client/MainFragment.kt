@@ -17,13 +17,18 @@ import ru.sinitsyndev.android_2021_task_6.MainActivity
 import ru.sinitsyndev.android_2021_task_6.R
 import ru.sinitsyndev.android_2021_task_6.appComponent
 import ru.sinitsyndev.android_2021_task_6.databinding.FragmentMainBinding
+import javax.inject.Inject
 
 class MainFragment : Fragment() {
 
     private var _binding: FragmentMainBinding? = null
     private val binding get() = _binding!!
 
-    private val viewModel: MainViewModel by viewModels()
+    private val viewModel: MainViewModel by viewModels {
+        factory.create(activity as MainActivity)
+    }
+    @Inject
+    lateinit var factory: MainViewModelFactory.Factory
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
@@ -32,7 +37,7 @@ class MainFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        viewModel.initMediaBrowserConnector(activity as MainActivity)
+        //viewModel.initMediaBrowserConnector(activity as MainActivity)
     }
 
     override fun onCreateView(
@@ -47,44 +52,8 @@ class MainFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        with(binding) {
-            playBtn.setOnClickListener {
-                viewModel.playPause()
-            }
-
-            NextBtn.setOnClickListener {
-                viewModel.skipToNext()
-            }
-
-            prevBtn.setOnClickListener {
-                viewModel.skipToPrevious()
-            }
-        }
-
-        with(viewModel) {
-            state.observe(
-                viewLifecycleOwner,
-                Observer {
-                    it ?: return@Observer
-                    onStateChanged(it)
-                }
-            )
-            isLoading.observe(
-                viewLifecycleOwner,
-                Observer {
-                    it ?: return@Observer
-                    binding.progressBar.isVisible = it
-                    disableEnableButtons(!it)
-                }
-            )
-            metadata.observe(
-                viewLifecycleOwner,
-                Observer {
-                    it ?: return@Observer
-                    showMetadata(it)
-                }
-            )
-        }
+        bindListeners()
+        observeViewModelValues()
     }
 
     private fun onStateChanged(_state: PlaybackStateCompat?) {
@@ -123,5 +92,48 @@ class MainFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    private fun bindListeners() {
+        with(binding) {
+            playBtn.setOnClickListener {
+                viewModel.playPause()
+            }
+
+            NextBtn.setOnClickListener {
+                viewModel.skipToNext()
+            }
+
+            prevBtn.setOnClickListener {
+                viewModel.skipToPrevious()
+            }
+        }
+    }
+
+    private fun observeViewModelValues() {
+        with(viewModel) {
+            state.observe(
+                viewLifecycleOwner,
+                {
+                    it ?: return@observe
+                    onStateChanged(it)
+                }
+            )
+            isLoading.observe(
+                viewLifecycleOwner,
+                {
+                    it ?: return@observe
+                    binding.progressBar.isVisible = it
+                    disableEnableButtons(!it)
+                }
+            )
+            metadata.observe(
+                viewLifecycleOwner,
+                {
+                    it ?: return@observe
+                    showMetadata(it)
+                }
+            )
+        }
     }
 }

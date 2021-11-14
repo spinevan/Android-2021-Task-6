@@ -11,14 +11,17 @@ import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import ru.sinitsyndev.android_2021_task_6.LOG_TAG
 import ru.sinitsyndev.android_2021_task_6.MainActivity
 import ru.sinitsyndev.android_2021_task_6.service.HardMediaService
 
-class MainViewModel(application: Application) : AndroidViewModel(application) {
-
-    @SuppressLint("StaticFieldLeak")
-    private var activity: MainActivity? = null
+@SuppressLint("StaticFieldLeak")
+class MainViewModel(application: Application, val activity: MainActivity) : AndroidViewModel(application) {
 
     private lateinit var mediaBrowser: MediaBrowserCompat
     private lateinit var mediaController: MediaControllerCompat
@@ -38,7 +41,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     token
                 )
                 // Save the controller
-                activity?.let{ MediaControllerCompat.setMediaController(it, mediaController) }
+                activity.let{ MediaControllerCompat.setMediaController(it, mediaController) }
             }
             // Finish building the UI
             buildTransportControls()
@@ -55,22 +58,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private var controllerCallback = object : MediaControllerCompat.Callback() {
 
-        override fun onMetadataChanged(_metadata: MediaMetadataCompat?) {
-            Log.d(LOG_TAG, "onMetadataChanged ${_metadata?.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID)}")
-            metadata.value = _metadata
+        override fun onMetadataChanged(newMetadata: MediaMetadataCompat?) {
+            Log.d(LOG_TAG, "onMetadataChanged ${newMetadata?.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID)}")
+            metadata.value = newMetadata
         }
 
-        override fun onPlaybackStateChanged(_state: PlaybackStateCompat?) {
-            Log.d(LOG_TAG, "onPlaybackStateChanged $_state")
-            state.postValue(_state)
+        override fun onPlaybackStateChanged(newState: PlaybackStateCompat?) {
+            Log.d(LOG_TAG, "onPlaybackStateChanged $newState")
+            state.postValue(newState)
 
-            when (_state?.state) {
+            when (newState?.state) {
                 PlaybackStateCompat.STATE_PLAYING -> isLoading.value = false
                 PlaybackStateCompat.STATE_STOPPED -> isLoading.value = false
                 PlaybackStateCompat.STATE_PAUSED -> isLoading.value = false
                 PlaybackStateCompat.STATE_ERROR -> isLoading.value = false
                 PlaybackStateCompat.STATE_BUFFERING -> isLoading.value = true
-                else -> Log.d(LOG_TAG, "Another state ${_state?.state}")
+                else -> Log.d(LOG_TAG, "Another state ${newState?.state}")
             }
         }
 
@@ -78,6 +81,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             super.onAudioInfoChanged(info)
             Log.d(LOG_TAG, "onAudioInfoChanged")
         }
+    }
+
+    init {
+        initMediaBrowserConnector()
     }
 
     private fun buildTransportControls() {
@@ -98,8 +105,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         disconnect()
     }
 
-    fun initMediaBrowserConnector(mActivity: MainActivity) {
-        activity = mActivity
+    private fun initMediaBrowserConnector() {
         mediaBrowser = MediaBrowserCompat(
             getApplication(),
             ComponentName(getApplication(), HardMediaService::class.java),
@@ -131,5 +137,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun disconnect() {
         mediaController.transportControls.stop()
         mediaBrowser.disconnect()
+    }
+}
+
+class MainViewModelFactory @AssistedInject constructor(
+    private val application: Application,
+    @Assisted("activity") private val activity: MainActivity
+): ViewModelProvider.AndroidViewModelFactory(application) {
+
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel?> create(modelClass: Class<T>): T {
+        return MainViewModel(application, activity) as T
+    }
+
+    @AssistedFactory
+    interface Factory  {
+
+        fun create(@Assisted("activity") activity: MainActivity): MainViewModelFactory
     }
 }
