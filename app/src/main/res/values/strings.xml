@@ -1,3 +1,12 @@
 <resources>
     <string name="app_name">Anroid-2021-Task-6</string>
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="press_play">Press Play</string>
+    <string name="and_have_fun">and have fun!</string>
+    <string name="next">Next</string>
+    <string name="prev">Prev</string>
+    <string name="album_image">Album image</string>
+    <string name="empty_playlist">Play list is empty</string>
 </resources>
