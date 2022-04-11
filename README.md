@@ -14,4 +14,4 @@
 - Реализация DI (e.g. Dagger)
 
 ## Реализовано
-<img alt="player" src="/img/port_1.png" width="250" height="500" />
+<img alt="player" src="/img/task6.gif" width="250" height="500" />
